@@ -2,7 +2,7 @@ library(shiny)
 library(subspace)
 library(ape)
 
-source("C:/Users/Konstantin/Desktop/Uni/6Semester/BachelorArbeit/ReadingData.R")
+source("C:/Users/Konstantin/Desktop/Uni/6Semester/BachelorArbeit/Code/ReadingData.R")
 
 options(shiny.maxRequestSize=200*1024^2)
 options(java.parameters = "-Xmx16000m")
@@ -54,8 +54,8 @@ ui <- fluidPage(
           textOutput(outputId = "minMax"),
           checkboxInput(inputId = "reverse",
                         label = "Reverse Color Strength"),
-          checkboxInput(inputId = "cutOff",
-                        label = "Reverse Color Strength"),
+          checkboxInput(inputId = "removeOutliers",
+                        label = "Removing the phenotype outliers"),
           checkboxInput(inputId = "pheno",
                         label = "Reverse Color Strength"),
           textOutput(outputId = "phenoInfo"),

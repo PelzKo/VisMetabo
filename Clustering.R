@@ -2,7 +2,7 @@ library(subspace)
 library(shiny)
 library(ape)
 
-source("C:/Users/Konstantin/Desktop/Uni/6Semester/BachelorArbeit/ReadingData.R")
+source("C:/Users/Konstantin/Desktop/Uni/6Semester/BachelorArbeit/Code/ReadingData.R")
 options(java.parameters = "-Xmx16000m")
 
 metabs <- readFile(dftest)
