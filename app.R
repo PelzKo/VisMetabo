@@ -30,6 +30,7 @@ ui <- fluidPage(
       selectInput(inputId = "idField",
                  label = "Unique ID:",
                  choices = list()),
+      textOutput(outputId = "idError"),
       selectInput(inputId = "metabStart",
                  label = "First Metabolite:",
                  choices = list()),
@@ -51,16 +52,16 @@ ui <- fluidPage(
           selectInput(inputId = "coloredRed",
                       label = "Color in Red:",
                       choices = list()),
-          textOutput(outputId = "minMax"),
+          uiOutput(outputId = "min"),
+          uiOutput(outputId = "max"),
           checkboxInput(inputId = "reverse",
                         label = "Reverse Color Strength"),
           checkboxInput(inputId = "removeOutliers",
-                        label = "Removing the phenotype outliers"),
-          checkboxInput(inputId = "pheno",
-                        label = "Reverse Color Strength"),
+                        label = "Remove the highest and lowest 5% (Only of number phenotypes)"),
+          #checkboxInput(inputId = "clusterRemove",
+          #              label = "Remove them before the clustering"),
           textOutput(outputId = "phenoInfo"),
-          plotOutput(outputId = "phenoHist"),
-          plotOutput(outputId = "phenoHist01")
+          plotOutput(outputId = "phenoHist")
           
           #selectInput(inputId = "coloredPurple",
           #            label = "Color in Purple:",
@@ -114,27 +115,49 @@ server <- function(input, output, session) {
         }
       }
       
-      clusters <- rep("grey",length(metabComplete[,1]))
-      colors <- c("red","blue","green","purple")
+      #clusters <- rep("grey",length(metabComplete[,1]))
+      #colors <- c("red","blue","green","purple")
       phenotype <- finalValues$pheno[[as.numeric(input$coloredRed)]]
+      
       
       if (class(phenotype)=="character"){
         phenotype <- as.numeric(factor(phenotype))
+      } else {
+        if (input$removeOutliers[[1]]){
+          n <- 5
+          lowestTooHigh <- min(phenotype[phenotype >= quantile(phenotype,prob=1-n/100)])
+          highestTooLow <- max(phenotype[phenotype <= quantile(phenotype,prob=n/100)])
+          phenotype[phenotype>lowestTooHigh] <- lowestTooHigh
+          phenotype[phenotype<highestTooLow] <- highestTooLow
+        }
       }
+      
       if (length(unique(finalValues$pheno[[as.numeric(input$coloredRed)]]))==1&&finalValues$pheno[[as.numeric(input$coloredRed)]][[1]]==0){
         clusters <- rgb(0, 0, 0, maxColorValue=255, alpha=255)
+        
+        
+        output$phenoInfo <- NULL
+        output$phenoHist <- NULL
+        
       } else {
         if (input$reverse[[1]]){
-          output$minMax <- renderText(sprintf("Min (Red): %s \nMax (Black): %s", min(phenotype),max(phenotype)))
+          output$min <- renderUI(HTML(sprintf("<div style='background-color: #FF0000FF;height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s", fourDeci(min(phenotype)))))
+          output$max <- renderUI(HTML(sprintf("<div style='background-color: #000000FF;height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s", fourDeci(max(phenotype)))))
           clusters <- rgb((1-range01(phenotype))*255, 0, 0, maxColorValue=255, alpha=255)
         } else {
-          output$minMax <- renderText(sprintf("Min (Black): %s \nMax (Red): %s", min(phenotype),max(phenotype)))
+          output$min <- renderUI(HTML(sprintf("<div style='background-color: #000000FF;height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s", fourDeci(min(phenotype)))))
+          output$max <- renderUI(HTML(sprintf("<div style='background-color: #FF0000FF;height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s", fourDeci(max(phenotype)))))
           clusters <- rgb(range01(phenotype)*255, 0, 0, maxColorValue=255, alpha=255)
         }
-        print(range01(phenotype))
-        print(mean(range01(phenotype)))
+        
+        
+        
+        output$phenoInfo <- renderText(sprintf("Mean of phenotypes after normalization between 0 and 1: %s", fourDeci(mean(range01(phenotype)))))
+        output$phenoHist <- renderPlot(hist(phenotype))
+        
         
       }
+      
       
       if (firstRun){
         test <- dist(metabComplete)
@@ -143,9 +166,6 @@ server <- function(input, output, session) {
       
       
       lim <- c(min(clusterInfo$res$vectors),max(clusterInfo$res$vectors))
-      output$phenoInfo <- renderText(sprintf("Mean: %s", mean(range01(phenotype))))
-      output$phenoHist <- renderPlot(hist(phenotype))
-      output$phenoHist01 <- renderPlot(hist(range01(phenotype)))
       plot(clusterInfo$res$vectors,col=clusters,bg = clusters,pch = 21,xlim = lim,ylim = lim)
     }
   })
@@ -164,6 +184,19 @@ server <- function(input, output, session) {
                       selected = "1")
   })
   
+  observeEvent(input$idField, {
+    if (length(data())==4){
+      dataNoNa <- data()$values[complete.cases(data()$values), ]
+      tempId <- as.numeric(input$idField)
+      if (length(dataNoNa[[tempId]])!=length(unique(dataNoNa[[tempId]]))){
+        output$idError <- renderText("Identifier is not unique")
+      } else {
+        output$idError <- NULL
+      }
+    }
+    
+  })
+  
   observeEvent(input$toOut, {
     if (length(data())==4){
       clusterInfo$cluster = list()
@@ -173,12 +206,15 @@ server <- function(input, output, session) {
       tempId <- as.numeric(input$idField)
       tempStart <- as.numeric(input$metabStart)
       tempEnd <- as.numeric(input$metabEnd)
-      if (length(dataNoNa[tempId])!=length(unique(dataNoNa[tempId]))){
-        print("Not Unique")
+      #validate(
+      #  need(length(dataNoNa[[tempId]])==length(unique(dataNoNa[[tempId]])),message = "Identifier is not unique")
+      #)
+      if (length(dataNoNa[[tempId]])!=length(unique(dataNoNa[[tempId]]))){
+        output$idError <- renderText("Identifier is not unique")
         return()
       }
       
-      finalValues$id <- dataNoNa[tempId]
+      finalValues$id <- dataNoNa[[tempId]]
       finalValues$metab <- dataNoNa[c(tempStart:tempEnd)]
       #none <- numeric(length(finalValues$id[[1]]))
       #names(none) <- "None"
@@ -211,6 +247,9 @@ server <- function(input, output, session) {
 }
 
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+specify_decimal <- function(k) { function(x){trimws(format(round(x, k), nsmall=k))} }
+fourDeci <- specify_decimal(4)
+
 
 # Create Shiny app ----
 shinyApp(ui = ui, server = server)
