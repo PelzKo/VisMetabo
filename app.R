@@ -1,6 +1,7 @@
 library(shiny)
 library(subspace)
 library(ape)
+library(ggplot2)
 
 source("C:/Users/Konstantin/Desktop/Uni/6Semester/BachelorArbeit/Code/ReadingData.R")
 
@@ -22,6 +23,9 @@ ui <- fluidPage(
       fileInput(inputId = "inputData",
                 label = "Data:",
                 accept = ".xlsx"),
+      checkboxInput(inputId = "externalPheno",
+                    label = "Upload phenotypes from another file"),
+      uiOutput(outputId = "phenoInputField"),
       actionButton("toTypes", "Upload")
              
     ),
@@ -73,7 +77,9 @@ ui <- fluidPage(
         mainPanel(
           
           # Output: Histogram ----
-          plotOutput(outputId = "distPlot")
+          plotOutput(outputId = "distPlot",
+                     hover = "plot_hover",),
+          verbatimTextOutput("info")
           
         )
       )
@@ -170,6 +176,15 @@ server <- function(input, output, session) {
     }
   })
   
+  output$info <- renderPrint({
+    # With ggplot2, no need to tell it what the x and y variables are.
+    # threshold: set max distance, in pixels
+    # maxpoints: maximum number of rows to return
+    # addDist: add column with distance, in pixels
+    nearPoints(clusterInfo$res$vectors, input$plot_hover, threshold = 10, maxpoints = 1,
+               addDist = FALSE)
+  })
+  
   observeEvent(input$toTypes, {
     if (length(data())==4){
       columnNames <- colnames(data()$values)
@@ -202,7 +217,6 @@ server <- function(input, output, session) {
       clusterInfo$cluster = list()
       dataNoNa <- data()$values[complete.cases(data()$values), ]
       
-      
       tempId <- as.numeric(input$idField)
       tempStart <- as.numeric(input$metabStart)
       tempEnd <- as.numeric(input$metabEnd)
@@ -213,6 +227,18 @@ server <- function(input, output, session) {
         output$idError <- renderText("Identifier is not unique")
         return()
       }
+      
+      if (input$externalPheno[[1]]&&!is.null(input$inputPheno)){
+        dataNoNaTemp <- merge(dataNoNa, readPhenoFile(input$inputPheno$datapath), by = names(dataNoNa)[[tempId]])
+        if (nrow(dataNoNaTemp)==0){
+          showNotification("Could not match any metab ids with phenotype ids. Please check you have the correct 
+                           ID column, they are named the same and the values are written in the same format.",type = "warning")
+          showNotification("Continuing with the phenotypes from the metabolite data sheet.",type = "message")
+        } else {
+          dataNoNa <- dataNoNaTemp
+        }
+      }
+      
       
       finalValues$id <- dataNoNa[[tempId]]
       finalValues$metab <- dataNoNa[c(tempStart:tempEnd)]
@@ -242,6 +268,16 @@ server <- function(input, output, session) {
       data()
     }
     
+  })
+  
+  output$phenoInputField <- renderUI({
+    if (input$externalPheno[[1]]){
+      return(fileInput(inputId = "inputPheno",
+                       label = "Phenotypes (they need to have the same unique id as the metab data):",
+                       accept = ".xlsx"))
+    } else {
+      return(NULL)
+    }
   })
   
 }
