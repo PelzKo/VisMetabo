@@ -1,9 +1,10 @@
 library(shiny)
 library(subspace)
 library(ape)
+library(umap)
 library(ggplot2)
 
-source("C:/Users/Konstantin/Desktop/Uni/6Semester/BachelorArbeit/Code/ReadingData.R")
+source("ReadingData.R")
 
 options(shiny.maxRequestSize=200*1024^2)
 options(java.parameters = "-Xmx16000m")
@@ -166,13 +167,14 @@ server <- function(input, output, session) {
       
       
       if (firstRun){
-        test <- dist(metabComplete)
-        clusterInfo$res <- pcoa(test)
+        #test <- dist(metabComplete)
+        #clusterInfo$visualisation <- pcoa(test)
+        clusterInfo$visualisation <- umap(metabComplete)
       }
       
       
-      lim <- c(min(clusterInfo$res$vectors),max(clusterInfo$res$vectors))
-      plot(clusterInfo$res$vectors,col=clusters,bg = clusters,pch = 21,xlim = lim,ylim = lim)
+      lim <- c(min(clusterInfo$visualisation$layout),max(clusterInfo$visualisation$layout))
+      plot(clusterInfo$visualisation$layout,col=clusters,bg = clusters,pch = 21,xlim = lim,ylim = lim)
     }
   })
   
@@ -181,8 +183,8 @@ server <- function(input, output, session) {
     # threshold: set max distance, in pixels
     # maxpoints: maximum number of rows to return
     # addDist: add column with distance, in pixels
-    nearPoints(clusterInfo$res$vectors, input$plot_hover, threshold = 10, maxpoints = 1,
-               addDist = FALSE)
+    #nearPoints(clusterInfo$visualisation$vectors, input$plot_hover, threshold = 10, maxpoints = 1,
+               #addDist = FALSE)
   })
   
   observeEvent(input$toTypes, {
@@ -285,6 +287,40 @@ server <- function(input, output, session) {
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
 specify_decimal <- function(k) { function(x){trimws(format(round(x, k), nsmall=k))} }
 fourDeci <- specify_decimal(4)
+
+plotData <- function(x, labels,
+         main="A UMAP visualization of the data",
+         colors=c("#ff7f00", "#e377c2", "#17becf"),
+         pad=0.1, cex=0.65, pch=19, add=FALSE, legend.suffix="",
+         cex.main=1, cex.legend=1) {
+
+  layout = x
+  if (is(x, "umap")) {
+    layout = x$layout
+  } 
+  
+  xylim = range(layout)
+  xylim = xylim + ((xylim[2]-xylim[1])*pad)*c(-0.5, 0.5)
+  if (!add) {
+    par(mar=c(0.2,0.7,1.2,0.7), ps=10)
+    plot(xylim, xylim, type="n", axes=F, frame=F)
+    rect(xylim[1], xylim[1], xylim[2], xylim[2], border="#aaaaaa", lwd=0.25)  
+  }
+  points(layout[,1], layout[,2], col=colors[as.integer(labels)],
+         cex=cex, pch=pch)
+  mtext(side=3, main, cex=cex.main)
+
+  labels.u = unique(labels)
+  legend.pos = "topright"
+  legend.text = as.character(labels.u)
+  if (add) {
+    legend.pos = "bottomright"
+    legend.text = paste(as.character(labels.u), legend.suffix)
+  }
+  legend(legend.pos, legend=legend.text,
+         col=colors[as.integer(labels.u)],
+         bty="n", pch=pch, cex=cex.legend)
+}
 
 
 # Create Shiny app ----
