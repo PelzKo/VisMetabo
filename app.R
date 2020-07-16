@@ -110,6 +110,7 @@ server <- function(input, output, session) {
   output$distPlot <- renderPlot({
     if (length(data())==4){
       firstRun <- length(clusterInfo$cluster)==0
+      colorPalette <-colorRampPalette(c("red","white","blue"), space="Lab")(20)
       
       #metabComplete <- finalValues$metab[complete.cases(finalValues$metab), ]
       metabComplete <- scale(finalValues$metab)
@@ -148,13 +149,13 @@ server <- function(input, output, session) {
         
       } else {
         if (input$reverse[[1]]){
-          output$min <- renderUI(HTML(sprintf("<div style='background-color: #FF0000FF;height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s", fourDeci(min(phenotype)))))
-          output$max <- renderUI(HTML(sprintf("<div style='background-color: #000000FF;height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s", fourDeci(max(phenotype)))))
-          clusters <- rgb((1-range01(phenotype))*255, 0, 0, maxColorValue=255, alpha=255)
+          output$min <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[1],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s",sep = ""), fourDeci(min(phenotype)))))
+          output$max <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[length(colorPalette)],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s",sep = ""), fourDeci(max(phenotype)))))
+          clusters <- vecToCol(phenotype,colorPalette)
         } else {
-          output$min <- renderUI(HTML(sprintf("<div style='background-color: #000000FF;height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s", fourDeci(min(phenotype)))))
-          output$max <- renderUI(HTML(sprintf("<div style='background-color: #FF0000FF;height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s", fourDeci(max(phenotype)))))
-          clusters <- rgb(range01(phenotype)*255, 0, 0, maxColorValue=255, alpha=255)
+          output$min <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[length(colorPalette)],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s",sep = ""), fourDeci(min(phenotype)))))
+          output$max <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[1],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s",sep = ""), fourDeci(max(phenotype)))))
+          clusters <- vecToCol(phenotype,rev(colorPalette))
         }
         
         
@@ -174,7 +175,8 @@ server <- function(input, output, session) {
       
       
       lim <- c(min(clusterInfo$visualisation$layout),max(clusterInfo$visualisation$layout))
-      plot(clusterInfo$visualisation$layout,col=clusters,bg = clusters,pch = 21,xlim = lim,ylim = lim)
+      coordinates <- data.frame(x=clusterInfo$visualisation$layout[,1],y=clusterInfo$visualisation$layout[,2]) #Does not work
+      ggplot(coordinates,col=clusters,bg = clusters,pch = 21,xlim = lim,ylim = lim)
     }
   })
   
@@ -320,6 +322,21 @@ plotData <- function(x, labels,
   legend(legend.pos, legend=legend.text,
          col=colors[as.integer(labels.u)],
          bty="n", pch=pch, cex=cex.legend)
+}
+
+vecToCol <- function(data, colors){
+  result <- data
+  result[] <- colors[length(colors)]
+  range = max(data)-min(data)
+  intervals = range/(length(colors)-1)
+  lastValue = -Inf
+  counter = 1
+  for (i in seq(min(data), max(data), by=intervals)){
+    result[data>lastValue&data<=i] <- colors[counter]
+    lastValue <- i
+    counter <- counter + 1
+  }
+  result
 }
 
 
