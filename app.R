@@ -3,6 +3,7 @@ library(subspace)
 library(ape)
 library(umap)
 library(ggplot2)
+library(ggfortify)
 
 source("ReadingData.R")
 
@@ -55,7 +56,7 @@ ui <- fluidPage(
           
           # Input: Slider for the number of bins ----
           selectInput(inputId = "coloredRed",
-                      label = "Color in Red:",
+                      label = "Phenotype:",
                       choices = list()),
           uiOutput(outputId = "min"),
           uiOutput(outputId = "max"),
@@ -79,7 +80,7 @@ ui <- fluidPage(
           
           # Output: Histogram ----
           plotOutput(outputId = "distPlot",
-                     hover = "plot_hover",),
+                     brush = "plot_brush"),
           verbatimTextOutput("info")
           
         )
@@ -170,13 +171,27 @@ server <- function(input, output, session) {
       if (firstRun){
         #test <- dist(metabComplete)
         #clusterInfo$visualisation <- pcoa(test)
-        clusterInfo$visualisation <- umap(metabComplete)
+        #clusterInfo$visualisation <- umap(metabComplete)
+        pca_data <- prcomp(metabComplete, scale. = TRUE)
+        ## Let us calculat the variances covered by components.
+        pca_data_perc=round(100*pca_data$sdev^2/sum(pca_data$sdev^2),1)
+        clusterInfo$percentage <- pca_data_perc
+        
+        ## create a data frame with principal component 1 (PC1), PC2, Conditions and sample names
+        df_pca_data = data.frame(PC1 = pca_data$x[,1], PC2 = pca_data$x[,2])
+        clusterInfo$visualisation <- df_pca_data
+        
       }
       
       
-      lim <- c(min(clusterInfo$visualisation$layout),max(clusterInfo$visualisation$layout))
-      coordinates <- data.frame(x=clusterInfo$visualisation$layout[,1],y=clusterInfo$visualisation$layout[,2]) #Does not work
-      ggplot(coordinates,col=clusters,bg = clusters,pch = 21,xlim = lim,ylim = lim)
+      #lim <- c(min(clusterInfo$visualisation),max(clusterInfo$visualisation))
+      #coordinates <- data.frame(x=clusterInfo$visualisation[,1],y=clusterInfo$visualisation[,2]) #Does not work
+      #plot(clusterInfo$visualisation[, 1:2],col=clusters,bg = clusters,pch = 21,xlim = lim,ylim = lim)
+      #autoplot(clusterInfo$visualisation,col=clusters, shape = 16)
+      finalValues$metabForBrush <- cbind(metabComplete,clusterInfo$visualisation)
+      ggplot(clusterInfo$visualisation, aes(PC1,PC2, color = clusters))+
+        geom_point()+
+        labs(x=paste0("PC1 (",clusterInfo$percentage[1],")"), y=paste0("PC2 (",clusterInfo$percentage[2],")")) 
     }
   })
   
@@ -187,6 +202,7 @@ server <- function(input, output, session) {
     # addDist: add column with distance, in pixels
     #nearPoints(clusterInfo$visualisation$vectors, input$plot_hover, threshold = 10, maxpoints = 1,
                #addDist = FALSE)
+    brushedPoints(finalValues$metabForBrush, input$plot_brush)
   })
   
   observeEvent(input$toTypes, {
