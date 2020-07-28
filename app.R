@@ -7,6 +7,7 @@ library(ggfortify)
 
 source("ReadingData.R")
 
+# Allow Uploads until 200MB
 options(shiny.maxRequestSize=200*1024^2)
 options(java.parameters = "-Xmx16000m")
 
@@ -18,6 +19,7 @@ ui <- fluidPage(
   titlePanel("Analysis of Metabolite data"),
   
   tabsetPanel(id = "tabs", type = "tabs",
+    # Input Panel
     tabPanel(title = "Data Input", value = "0",
       titlePanel("Please upload your data"),
       "Important things about the data:",
@@ -31,7 +33,7 @@ ui <- fluidPage(
       actionButton("toTypes", "Upload")
              
     ),
-    
+    # Input Validation Panel
     tabPanel(title = "Specifying Column Types", value = "1",
       selectInput(inputId = "idField",
                  label = "Unique ID:",
@@ -46,7 +48,7 @@ ui <- fluidPage(
       tableOutput(outputId = "dataAnalysis"),
       actionButton("toOut", "Cluster Now")
     ),
-    
+    # Output Panel
     tabPanel(title = "Output", value = "2",
       # Sidebar layout with input and output definitions ----
       sidebarLayout(
@@ -92,11 +94,8 @@ ui <- fluidPage(
 
 # Define server logic required ----
 server <- function(input, output, session) {
+  # Data uploaded by the user
   data <- reactive({
-    #validate(
-    #  need(!is.null(input$inputData),"Please upload a file first")
-    #)
-    #readFile(input$inputData$datapath)
     if (!is.null(input$inputData)){
       readFile(input$inputData$datapath)
     }
@@ -104,8 +103,9 @@ server <- function(input, output, session) {
       list("Error" = "Please upload a file first!")
     }
   })
-  
+  # Transformed/normalized data
   finalValues <- reactiveValues(id = 1, metab = list(), pheno = list())
+  # Clusters
   clusterInfo <- reactiveValues(cluster = list(), res = list())
   
   output$distPlot <- renderPlot({
@@ -195,6 +195,7 @@ server <- function(input, output, session) {
     }
   })
   
+  # Info about the selected points
   output$info <- renderPrint({
     # With ggplot2, no need to tell it what the x and y variables are.
     # threshold: set max distance, in pixels
@@ -205,6 +206,7 @@ server <- function(input, output, session) {
     brushedPoints(finalValues$metabForBrush, input$plot_brush)
   })
   
+  # Goto Input Validation Panel
   observeEvent(input$toTypes, {
     if (length(data())==4){
       columnNames <- colnames(data()$values)
@@ -219,6 +221,7 @@ server <- function(input, output, session) {
                       selected = "1")
   })
   
+  # Check if ID Field is unique
   observeEvent(input$idField, {
     if (length(data())==4){
       dataNoNa <- data()$values[complete.cases(data()$values), ]
@@ -232,6 +235,7 @@ server <- function(input, output, session) {
     
   })
   
+  # Goto Output Panel
   observeEvent(input$toOut, {
     if (length(data())==4){
       clusterInfo$cluster = list()
@@ -290,6 +294,7 @@ server <- function(input, output, session) {
     
   })
   
+  #Take phenotypes from different file
   output$phenoInputField <- renderUI({
     if (input$externalPheno[[1]]){
       return(fileInput(inputId = "inputPheno",
@@ -302,9 +307,13 @@ server <- function(input, output, session) {
   
 }
 
+#Scales vector to the range 0 to 1
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+# round to k decimals
 specify_decimal <- function(k) { function(x){trimws(format(round(x, k), nsmall=k))} }
+# round to 4 decimals
 fourDeci <- specify_decimal(4)
+
 
 plotData <- function(x, labels,
          main="A UMAP visualization of the data",
@@ -340,6 +349,7 @@ plotData <- function(x, labels,
          bty="n", pch=pch, cex=cex.legend)
 }
 
+# Transforms a numbervector into colors
 vecToCol <- function(data, colors){
   result <- data
   result[] <- colors[length(colors)]
