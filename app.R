@@ -109,25 +109,35 @@ server <- function(input, output, session) {
   finalValues <- reactiveValues(id = 1, metab = list(), pheno = list())
   # Clusters
   clusteringData <- reactiveValues(Clique = list(), SOM = list(), COSA = list(), DOC = list())
+  # PCAData
+  pcaValues <- reactiveValues()
   
   output$distPlot <- renderPlot({
     if (length(data())==4){
-      firstRunForClusteringMethod <- length(clusteringData$as.character(input$selectedPhenotype))==0
+      firstRunForClusteringMethod <- length(clusteringData[[input$clusteringType]])==0
       colorPalette <-colorRampPalette(c("red","white","blue"), space="Lab")(20)
       
-      #metabComplete <- finalValues$metab[complete.cases(finalValues$metab), ]
       metabComplete <- scale(finalValues$metab)
       
       if (firstRunForClusteringMethod){
-        clusterInfo$cluster <- CLIQUE(metabComplete)
-        for (i in seq_len(length(clusterInfo$cluster))){
-          metabComplete[clusterInfo$cluster[[i]][[2]],clusterInfo$cluster[[i]][[1]]]<-10#metabComplete[clusterInfo$cluster[[i]][[2]],clusterInfo$cluster[[i]][[1]]]*100
-          #clusters[clusterInfo$cluster[[i]][[2]]]=colors[[i]]
-        }
+        clusteringData$cluster <- CLIQUE(metabComplete)
+        switch(input$clusteringType, 
+               SOM={
+                 clusteringData$SOM <- som(metabComplete)
+               },
+               COSA={
+                 clusteringData$COSA <- cosa2(metabComplete)  
+               },
+               DOC={
+                 #clusteringData$DOC <- doc(metabComplete)   
+               },
+               {
+                 # default is using Clique
+                 clusteringData$Clique <- CLIQUE(metabComplete) 
+               }
+        )
       }
       
-      #clusters <- rep("grey",length(metabComplete[,1]))
-      #colors <- c("red","blue","green","purple")
       phenotype <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
       
       
@@ -144,7 +154,7 @@ server <- function(input, output, session) {
       }
       
       if (length(unique(finalValues$pheno[[as.numeric(input$selectedPhenotype)]]))==1&&finalValues$pheno[[as.numeric(input$selectedPhenotype)]][[1]]==0){
-        clusters <- rgb(0, 0, 0, maxColorValue=255, alpha=255)
+        coloredPoints <- rgb(0, 0, 0, maxColorValue=255, alpha=255)
         
         
         output$phenoInfo <- NULL
@@ -154,11 +164,11 @@ server <- function(input, output, session) {
         if (input$reverse[[1]]){
           output$min <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[1],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s",sep = ""), fourDeci(min(phenotype)))))
           output$max <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[length(colorPalette)],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s",sep = ""), fourDeci(max(phenotype)))))
-          clusters <- vecToCol(phenotype,colorPalette)
+          coloredPoints <- vecToCol(phenotype,colorPalette)
         } else {
           output$min <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[length(colorPalette)],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s",sep = ""), fourDeci(min(phenotype)))))
           output$max <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[1],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s",sep = ""), fourDeci(max(phenotype)))))
-          clusters <- vecToCol(phenotype,rev(colorPalette))
+          coloredPoints <- vecToCol(phenotype,rev(colorPalette))
         }
         
         
@@ -171,17 +181,15 @@ server <- function(input, output, session) {
       
       
       if (firstRunForClusteringMethod){
-        #test <- dist(metabComplete)
-        #clusterInfo$visualisation <- pcoa(test)
-        #clusterInfo$visualisation <- umap(metabComplete)
+        
         pca_data <- prcomp(metabComplete, scale. = TRUE)
         ## Let us calculat the variances covered by components.
         pca_data_perc=round(100*pca_data$sdev^2/sum(pca_data$sdev^2),1)
-        clusterInfo$percentage <- pca_data_perc
+        pcaValues$percentage <- pca_data_perc
         
         ## create a data frame with principal component 1 (PC1), PC2, Conditions and sample names
         df_pca_data = data.frame(PC1 = pca_data$x[,1], PC2 = pca_data$x[,2])
-        clusterInfo$visualisation <- df_pca_data
+        pcaValues$visualisation <- df_pca_data
         
       }
       
@@ -190,10 +198,10 @@ server <- function(input, output, session) {
       #coordinates <- data.frame(x=clusterInfo$visualisation[,1],y=clusterInfo$visualisation[,2]) #Does not work
       #plot(clusterInfo$visualisation[, 1:2],col=clusters,bg = clusters,pch = 21,xlim = lim,ylim = lim)
       #autoplot(clusterInfo$visualisation,col=clusters, shape = 16)
-      finalValues$metabForBrush <- cbind(metabComplete,clusterInfo$visualisation)
-      ggplot(clusterInfo$visualisation, aes(PC1,PC2, color = clusters))+
+      finalValues$metabForBrush <- cbind(metabComplete,pcaValues$visualisation)
+      ggplot(pcaValues$visualisation, aes(PC1,PC2, color = coloredPoints))+
         geom_point()+
-        labs(x=paste0("PC1 (",clusterInfo$percentage[1],")"), y=paste0("PC2 (",clusterInfo$percentage[2],")")) 
+        labs(x=paste0("PC1 (",pcaValues$percentage[1],")"), y=paste0("PC2 (",pcaValues$percentage[2],")")) 
     }
   })
   
@@ -244,34 +252,32 @@ server <- function(input, output, session) {
       clusteringData$SOM = list()
       clusteringData$COSA = list()
       clusteringData$DOC = list()
-      dataNoNa <- data()$values[complete.cases(data()$values), ]
+      inputData <- data()$values[complete.cases(data()$values), ]
       
       tempId <- as.numeric(input$idField)
       tempStart <- as.numeric(input$metabStart)
       tempEnd <- as.numeric(input$metabEnd)
       
-      if (length(dataNoNa[[tempId]])!=length(unique(dataNoNa[[tempId]]))){
+      if (length(inputData[[tempId]])!=length(unique(inputData[[tempId]]))){
         output$idError <- renderText("Identifier is not unique")
         return()
       }
       
       if (input$externalPheno[[1]]&&!is.null(input$inputPheno)){
-        dataNoNaTemp <- merge(dataNoNa, readPhenoFile(input$inputPheno$datapath), by = names(dataNoNa)[[tempId]])
-        if (nrow(dataNoNaTemp)==0){
+        dataTemp <- merge(inputData, readPhenoFile(input$inputPheno$datapath), by = names(inputData)[[tempId]])
+        if (nrow(dataTemp)==0){
           showNotification("Could not match any metab ids with phenotype ids. Please check you have the correct 
                            ID column, they are named the same and the values are written in the same format.",type = "warning")
           showNotification("Continuing with the phenotypes from the metabolite data sheet.",type = "message")
         } else {
-          dataNoNa <- dataNoNaTemp
+          inputData <- dataTemp
         }
       }
       
       
-      finalValues$id <- dataNoNa[[tempId]]
-      finalValues$metab <- dataNoNa[c(tempStart:tempEnd)]
-      #none <- numeric(length(finalValues$id[[1]]))
-      #names(none) <- "None"
-      finalValues$pheno <- dataNoNa[-c(tempId,c(tempStart:tempEnd))]
+      finalValues$id <- inputData[[tempId]]
+      finalValues$metab <- inputData[c(tempStart:tempEnd)]
+      finalValues$pheno <- inputData[-c(tempId,c(tempStart:tempEnd))]
       finalValues$pheno$None <- numeric(length(finalValues$id[[1]]))
       
       columnNames <- names(finalValues$pheno)

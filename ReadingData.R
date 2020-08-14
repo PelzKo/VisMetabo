@@ -60,8 +60,8 @@ readFile <- function(filePath, fileSheet = 1){
   
   print("Done")
   
-  metab <- df[c(metab_start_final:metab_end_final)]
-  pheno <- df[-c(metab_start_final:metab_end_final)]
+  #metab <- df[c(metab_start_final:metab_end_final)]
+  #pheno <- df[-c(metab_start_final:metab_end_final)]
   #return(list(metab,pheno))
   return (list(values = df,id = id_col,metab_start = metab_start_final,metab_end = metab_end_final))
 }
