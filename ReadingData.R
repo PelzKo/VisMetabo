@@ -4,6 +4,7 @@ library("openxlsx")
 
 readFile <- function(filePath, fileSheet = 1){
   df <- read.xlsx(filePath, sheet = fileSheet)
+  df <- df[complete.cases(df),]
   
   id_col <- 0
   need_id <- TRUE
@@ -57,9 +58,6 @@ readFile <- function(filePath, fileSheet = 1){
   }
   
   
-  #print(colnames(df)[[id_col]])
-  #print(colnames(df)[[metab_start_final]])
-  #print(colnames(df)[[metab_end_final]])
   print("Done")
   
   metab <- df[c(metab_start_final:metab_end_final)]
@@ -70,6 +68,7 @@ readFile <- function(filePath, fileSheet = 1){
 
 readPhenoFile <- function(filePath, fileSheet = 1){
   df <- read.xlsx(filePath, sheet = fileSheet)
+  df <- df[complete.cases(df),]
  
   return (df)
 }

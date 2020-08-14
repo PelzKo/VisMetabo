@@ -1,9 +1,9 @@
 library(shiny)
 library(subspace)
-library(ape)
-library(umap)
 library(ggplot2)
 library(ggfortify)
+library(rCOSA)
+library(kohonen)
 
 source("ReadingData.R")
 
@@ -45,7 +45,6 @@ ui <- fluidPage(
       selectInput(inputId = "metabEnd",
                  label = "Last Metabolite:",
                  choices = list()),
-      tableOutput(outputId = "dataAnalysis"),
       actionButton("toOut", "Cluster Now")
     ),
     # Output Panel
@@ -57,9 +56,12 @@ ui <- fluidPage(
         sidebarPanel(
           
           # Input: Slider for the number of bins ----
-          selectInput(inputId = "coloredRed",
+          selectInput(inputId = "selectedPhenotype",
                       label = "Phenotype:",
                       choices = list()),
+          selectInput(inputId = "clusteringType",
+                      label = "Clustering Algorithm used:",
+                      choices = list("Clique","SOM", "COSA","DOC")),
           uiOutput(outputId = "min"),
           uiOutput(outputId = "max"),
           checkboxInput(inputId = "reverse",
@@ -106,18 +108,18 @@ server <- function(input, output, session) {
   # Transformed/normalized data
   finalValues <- reactiveValues(id = 1, metab = list(), pheno = list())
   # Clusters
-  clusterInfo <- reactiveValues(cluster = list(), res = list())
+  clusteringData <- reactiveValues(Clique = list(), SOM = list(), COSA = list(), DOC = list())
   
   output$distPlot <- renderPlot({
     if (length(data())==4){
-      firstRun <- length(clusterInfo$cluster)==0
+      firstRunForClusteringMethod <- length(clusteringData$as.character(input$selectedPhenotype))==0
       colorPalette <-colorRampPalette(c("red","white","blue"), space="Lab")(20)
       
       #metabComplete <- finalValues$metab[complete.cases(finalValues$metab), ]
       metabComplete <- scale(finalValues$metab)
       
-      if (firstRun){
-        clusterInfo$cluster <- SubClu(metabComplete)
+      if (firstRunForClusteringMethod){
+        clusterInfo$cluster <- CLIQUE(metabComplete)
         for (i in seq_len(length(clusterInfo$cluster))){
           metabComplete[clusterInfo$cluster[[i]][[2]],clusterInfo$cluster[[i]][[1]]]<-10#metabComplete[clusterInfo$cluster[[i]][[2]],clusterInfo$cluster[[i]][[1]]]*100
           #clusters[clusterInfo$cluster[[i]][[2]]]=colors[[i]]
@@ -126,7 +128,7 @@ server <- function(input, output, session) {
       
       #clusters <- rep("grey",length(metabComplete[,1]))
       #colors <- c("red","blue","green","purple")
-      phenotype <- finalValues$pheno[[as.numeric(input$coloredRed)]]
+      phenotype <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
       
       
       if (class(phenotype)=="character"){
@@ -141,7 +143,7 @@ server <- function(input, output, session) {
         }
       }
       
-      if (length(unique(finalValues$pheno[[as.numeric(input$coloredRed)]]))==1&&finalValues$pheno[[as.numeric(input$coloredRed)]][[1]]==0){
+      if (length(unique(finalValues$pheno[[as.numeric(input$selectedPhenotype)]]))==1&&finalValues$pheno[[as.numeric(input$selectedPhenotype)]][[1]]==0){
         clusters <- rgb(0, 0, 0, maxColorValue=255, alpha=255)
         
         
@@ -168,7 +170,7 @@ server <- function(input, output, session) {
       }
       
       
-      if (firstRun){
+      if (firstRunForClusteringMethod){
         #test <- dist(metabComplete)
         #clusterInfo$visualisation <- pcoa(test)
         #clusterInfo$visualisation <- umap(metabComplete)
@@ -238,15 +240,16 @@ server <- function(input, output, session) {
   # Goto Output Panel
   observeEvent(input$toOut, {
     if (length(data())==4){
-      clusterInfo$cluster = list()
+      clusteringData$Clique = list()
+      clusteringData$SOM = list()
+      clusteringData$COSA = list()
+      clusteringData$DOC = list()
       dataNoNa <- data()$values[complete.cases(data()$values), ]
       
       tempId <- as.numeric(input$idField)
       tempStart <- as.numeric(input$metabStart)
       tempEnd <- as.numeric(input$metabEnd)
-      #validate(
-      #  need(length(dataNoNa[[tempId]])==length(unique(dataNoNa[[tempId]])),message = "Identifier is not unique")
-      #)
+      
       if (length(dataNoNa[[tempId]])!=length(unique(dataNoNa[[tempId]]))){
         output$idError <- renderText("Identifier is not unique")
         return()
@@ -275,23 +278,13 @@ server <- function(input, output, session) {
       columns <- seq_len(length(columnNames))
       names(columns)<-columnNames
       if (length(columns)>0){
-        updateSelectInput(session, "coloredRed", choices = columns, selected = columns[["None"]])
+        updateSelectInput(session, "selectedPhenotype", choices = columns, selected = columns[["None"]])
       }
       
       
     }
     updateTabsetPanel(session, "tabs",
                       selected = "2")
-  })
-  
-  output$dataAnalysis <- renderTable({
-    if (length(data())==4){
-      data()[c(2,3,4)]
-    }
-    else{
-      data()
-    }
-    
   })
   
   #Take phenotypes from different file
@@ -314,40 +307,6 @@ specify_decimal <- function(k) { function(x){trimws(format(round(x, k), nsmall=k
 # round to 4 decimals
 fourDeci <- specify_decimal(4)
 
-
-plotData <- function(x, labels,
-         main="A UMAP visualization of the data",
-         colors=c("#ff7f00", "#e377c2", "#17becf"),
-         pad=0.1, cex=0.65, pch=19, add=FALSE, legend.suffix="",
-         cex.main=1, cex.legend=1) {
-
-  layout = x
-  if (is(x, "umap")) {
-    layout = x$layout
-  } 
-  
-  xylim = range(layout)
-  xylim = xylim + ((xylim[2]-xylim[1])*pad)*c(-0.5, 0.5)
-  if (!add) {
-    par(mar=c(0.2,0.7,1.2,0.7), ps=10)
-    plot(xylim, xylim, type="n", axes=F, frame=F)
-    rect(xylim[1], xylim[1], xylim[2], xylim[2], border="#aaaaaa", lwd=0.25)  
-  }
-  points(layout[,1], layout[,2], col=colors[as.integer(labels)],
-         cex=cex, pch=pch)
-  mtext(side=3, main, cex=cex.main)
-
-  labels.u = unique(labels)
-  legend.pos = "topright"
-  legend.text = as.character(labels.u)
-  if (add) {
-    legend.pos = "bottomright"
-    legend.text = paste(as.character(labels.u), legend.suffix)
-  }
-  legend(legend.pos, legend=legend.text,
-         col=colors[as.integer(labels.u)],
-         bty="n", pch=pch, cex=cex.legend)
-}
 
 # Transforms a numbervector into colors
 vecToCol <- function(data, colors){
