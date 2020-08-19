@@ -82,8 +82,10 @@ ui <- fluidPage(
         # Main panel for displaying outputs ----
         mainPanel(
           
-          # Output: Histogram ----
-          plotOutput(outputId = "distPlot",
+          # Output: Clustering & PCA ----
+          plotOutput(outputId = "clustering",
+                     brush = "plot_brush"),
+          plotOutput(outputId = "pca",
                      brush = "plot_brush"),
           verbatimTextOutput("info")
           
@@ -112,15 +114,16 @@ server <- function(input, output, session) {
   # PCAData
   pcaValues <- reactiveValues()
   
-  output$distPlot <- renderPlot({
+  
+  output$pca <- renderPlot({
     if (length(data())==4){
       firstRunForClusteringMethod <- length(clusteringData[[input$clusteringType]])==0
+      firstPCA <- length(pcaValues$visualisation)==0
       colorPalette <-colorRampPalette(c("red","white","blue"), space="Lab")(20)
       
       metabComplete <- scale(finalValues$metab)
       
       if (firstRunForClusteringMethod){
-        clusteringData$cluster <- CLIQUE(metabComplete)
         switch(input$clusteringType, 
                SOM={
                  clusteringData$SOM <- som(metabComplete)
@@ -170,17 +173,29 @@ server <- function(input, output, session) {
           output$max <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[1],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s",sep = ""), fourDeci(max(phenotype)))))
           coloredPoints <- vecToCol(phenotype,rev(colorPalette))
         }
-        
-        
-        
         output$phenoInfo <- renderText(sprintf("Mean of phenotypes after normalization between 0 and 1: %s", fourDeci(mean(range01(phenotype)))))
         output$phenoHist <- renderPlot(hist(phenotype))
-        
-        
       }
       
+      switch(input$clusteringType, 
+             SOM={
+               output$clustering <- renderPlot(plot(clusteringData$SOM, type="mapping", classif=predict(clusteringData$SOM)
+                                                    , pchs = c(1,2,3,4,5)))
+             },
+             COSA={
+               output$clustering <- renderPlot(smacof(clusteringData$COSA$D, interc = 0))
+             },
+             DOC={
+               #clusteringData$DOC <- doc(metabComplete)   
+             },
+             {
+               # default is using Clique
+               output$clustering <- renderPlot(plot(clusteringData$Clique,metabComplete))
+             }
+      )
       
-      if (firstRunForClusteringMethod){
+      
+      if (firstPCA){
         
         pca_data <- prcomp(metabComplete, scale. = TRUE)
         ## Let us calculat the variances covered by components.
@@ -192,6 +207,10 @@ server <- function(input, output, session) {
         pcaValues$visualisation <- df_pca_data
         
       }
+      
+      #output$clustering <- renderPlot({
+      #  ggplot(clusteringData[[input$clusteringType]])
+      #})
       
       
       #lim <- c(min(clusterInfo$visualisation),max(clusterInfo$visualisation))
