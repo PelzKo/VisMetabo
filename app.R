@@ -121,15 +121,17 @@ server <- function(input, output, session) {
       firstPCA <- length(pcaValues$visualisation)==0
       colorPalette <-colorRampPalette(c("red","white","blue"), space="Lab")(20)
       
-      metabComplete <- scale(finalValues$metab)
+      metabComplete <- data.frame(scale(finalValues$metab))
       
       if (firstRunForClusteringMethod){
         switch(input$clusteringType, 
                SOM={
-                 clusteringData$SOM <- som(metabComplete)
+                 #clusteringData$SOM <- som(metabComplete)
                },
                COSA={
-                 clusteringData$COSA <- cosa2(metabComplete)  
+                 #clusteringData$COSA <- cosa2(metabComplete)
+                 #hclst.cosa <- hierclust(clusteringData$COSA$D)
+                 #clusteringData$COSA$grps <- getclust(hclst.cosa)
                },
                DOC={
                  #clusteringData$DOC <- doc(metabComplete)   
@@ -179,11 +181,11 @@ server <- function(input, output, session) {
       
       switch(input$clusteringType, 
              SOM={
-               output$clustering <- renderPlot(plot(clusteringData$SOM, type="mapping", classif=predict(clusteringData$SOM)
-                                                    , pchs = c(1,2,3,4,5)))
+               #output$clustering <- renderPlot(plot(clusteringData$SOM, type="mapping", classif=predict(clusteringData$SOM)
+               #                                     , pchs = c(1,2,3,4,5)))
              },
              COSA={
-               output$clustering <- renderPlot(smacof(clusteringData$COSA$D, interc = 0))
+               #output$clustering <- renderPlot(smacof(clusteringData$COSA$D, groupnr = clusteringData$COSA$grps , interc = 0))
              },
              DOC={
                #clusteringData$DOC <- doc(metabComplete)   
@@ -217,9 +219,10 @@ server <- function(input, output, session) {
       #coordinates <- data.frame(x=clusterInfo$visualisation[,1],y=clusterInfo$visualisation[,2]) #Does not work
       #plot(clusterInfo$visualisation[, 1:2],col=clusters,bg = clusters,pch = 21,xlim = lim,ylim = lim)
       #autoplot(clusterInfo$visualisation,col=clusters, shape = 16)
-      finalValues$metabForBrush <- cbind(metabComplete,pcaValues$visualisation)
+      #finalValues$metabForBrush <- cbind(metabComplete,pcaValues$visualisation)
       ggplot(pcaValues$visualisation, aes(PC1,PC2, color = coloredPoints))+
         geom_point()+
+        theme(legend.position="none")+
         labs(x=paste0("PC1 (",pcaValues$percentage[1],")"), y=paste0("PC2 (",pcaValues$percentage[2],")")) 
     }
   })
@@ -232,7 +235,7 @@ server <- function(input, output, session) {
     # addDist: add column with distance, in pixels
     #nearPoints(clusterInfo$visualisation$vectors, input$plot_hover, threshold = 10, maxpoints = 1,
                #addDist = FALSE)
-    brushedPoints(finalValues$metabForBrush, input$plot_brush)
+    #brushedPoints(finalValues$id, input$plot_brush)
   })
   
   # Goto Input Validation Panel
