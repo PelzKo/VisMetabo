@@ -336,6 +336,7 @@ specify_decimal <- function(k) { function(x){trimws(format(round(x, k), nsmall=k
 fourDeci <- specify_decimal(4)
 
 
+
 # Transforms a numbervector into colors
 vecToCol <- function(data, colors){
   result <- data

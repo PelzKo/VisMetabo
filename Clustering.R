@@ -36,3 +36,6 @@ plot(res$vectors,col=clusters,bg = clusters,pch = 21)
 
 
 range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+
+
+

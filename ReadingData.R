@@ -2,6 +2,7 @@ library("openxlsx")
 #dftest <- "C:/Users/Konstantin/Desktop/Uni/6Semester/BachelorArbeit/BeispielDaten/metabExampleMaleFemale.xlsx"
 #df <- read.xlsx("C:/Users/Konstantin/Desktop/Uni/6Semester/BachelorArbeit/BeispielDaten/QMDiab_metabolomics_Preprocessed.xlsx", sheet = 1)
 
+
 readFile <- function(filePath, fileSheet = 1){
   df <- read.xlsx(filePath, sheet = fileSheet)
   df <- df[complete.cases(df),]
