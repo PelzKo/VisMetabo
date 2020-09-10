@@ -6,6 +6,7 @@ library(rCOSA)
 library(kohonen)
 
 source("ReadingData.R")
+source("plotHeatMap.R")
 
 # Allow Uploads until 200MB
 options(shiny.maxRequestSize=200*1024^2)
@@ -87,7 +88,8 @@ ui <- fluidPage(
                      brush = "plot_brush"),
           plotOutput(outputId = "pca",
                      brush = "plot_brush"),
-          verbatimTextOutput("info")
+          uiOutput(outputId = "moreInfoSOM"),
+          htmlOutput("info")
           
         )
       )
@@ -121,12 +123,15 @@ server <- function(input, output, session) {
       firstPCA <- length(pcaValues$visualisation)==0
       colorPalette <-colorRampPalette(c("red","white","blue"), space="Lab")(20)
       
+      dev.interactive()
+      inter <- dev.interactive()
+      
       metabComplete <- data.frame(scale(finalValues$metab))
       
       if (firstRunForClusteringMethod){
         switch(input$clusteringType, 
                SOM={
-                 #clusteringData$SOM <- som(metabComplete)
+                 clusteringData$SOM <- som(data.matrix(metabComplete))
                },
                COSA={
                  #clusteringData$COSA <- cosa2(metabComplete)
@@ -183,6 +188,7 @@ server <- function(input, output, session) {
              SOM={
                #output$clustering <- renderPlot(plot(clusteringData$SOM, type="mapping", classif=predict(clusteringData$SOM)
                #                                     , pchs = c(1,2,3,4,5)))
+               output$clustering <- renderPlot(plotHeatMap(clusteringData$SOM,metabComplete,as.numeric(input$selectedPhenotype)))
              },
              COSA={
                #output$clustering <- renderPlot(smacof(clusteringData$COSA$D, groupnr = clusteringData$COSA$grps , interc = 0))
@@ -192,7 +198,7 @@ server <- function(input, output, session) {
              },
              {
                # default is using Clique
-               output$clustering <- renderPlot(plot(clusteringData$Clique,metabComplete))
+               #output$clustering <- renderPlot(plot(clusteringData$Clique,metabComplete))
              }
       )
       
@@ -323,6 +329,33 @@ server <- function(input, output, session) {
                        accept = ".xlsx"))
     } else {
       return(NULL)
+    }
+  })
+  
+  #Take phenotypes from different file
+  output$moreInfoSOM <- renderUI({
+    if (input$clusteringType=="SOM"){
+      return(actionButton("moreInfoSOMButton","Select Node for more Info"))
+    } else {
+      return(NULL)
+    }
+  })
+  
+  # Goto Input Validation Panel
+  observeEvent(input$moreInfoSOMButton, {
+    if (length(data())==4){
+      if (dev.interactive()){
+        bubbleId <- identify(clusteringData$SOM,plot=FALSE, n=1)
+        averageInBubble <- somData$codes[[1]][bubbleId,]
+        idsInBubble <- seq_len(1756)[somData$unit.classif==bubbleId]
+        output$info <- renderUI({
+          ids <- sprintf("This node (%s) contains the following ids: <br/>%s", bubbleId, idsInBubble)
+          average <- sprintf("The average values in this node are: <br/>%s", averageInBubble)
+          HTML(paste(ids, average, sep = '<br/>'))
+        })
+      } else {
+        output$info <- renderUI(HTML("Current graphics device is not interactive"))
+      }
     }
   })
   
