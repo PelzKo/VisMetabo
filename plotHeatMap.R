@@ -4,14 +4,15 @@
 
 # this function is to plot the heatmap of a variable
 
-plotHeatMap <- function(som_model, data, variable=0){    
-  # Plot a heatmap for any variable from the data set "data".
+plotHeatMap <- function(som_model, phenotype_data, variable=0){    
+  # Plot a heatmap for any variable from the data set "phenotype_data".
   # If variable is 0, an interactive window will be provided to choose the variable.
   # If not, the variable in "variable" will be plotted.
   
   require(dummies)
   require(kohonen)
-  source('C:\\Users\\Konstantin\\Desktop\\Uni\\6Semester\\BachelorArbeit\\Code\\coolBlueHotRed.R')
+  #source('C:\\Users\\Konstantin\\Desktop\\Uni\\6Semester\\BachelorArbeit\\Code\\coolBlueHotRed.R')
+  source("coolBlueHotRed.R")
   
   interactive <- TRUE
   
@@ -19,19 +20,21 @@ plotHeatMap <- function(som_model, data, variable=0){
     
     if (variable == 0){
       #show interactive window.
-      color_by_var <- select.list(names(data), multiple=FALSE,
-                                  graphics=TRUE, 
-                                  title="Choose variable to color map by.")
+      #color_by_var <- select.list(names(phenotype_data), multiple=FALSE,
+      #                            graphics=TRUE, 
+      #                            title="Choose variable to color map by.")
       # check for user finished.
-      if (color_by_var == ""){ # if user presses Cancel - we quit function        
-        return(TRUE)
-      }
-      interactive <- TRUE
-      color_variable <- data.frame(data[, color_by_var])
+      #if (color_by_var == ""){ # if user presses Cancel - we quit function        
+      #  return(TRUE)
+      #}
+      #interactive <- TRUE
+      #color_variable <- data.frame(phenotype_data[, color_by_var])
+      
+      return(plot(som_model, type = "quality", main="Quality score (mean distance of objects to codebook vector of that unit, smaller is better)", palette.name=coolBlueHotRed))
           
     } else {
-      color_variable <- data.frame(data[, variable])
-      color_by_var <- names(data)[variable]
+      color_variable <- data.frame(phenotype_data[, variable])
+      color_by_var <- names(phenotype_data)[variable]
       interactive <- FALSE
     }
       

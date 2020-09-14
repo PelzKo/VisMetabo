@@ -85,10 +85,10 @@ ui <- fluidPage(
           
           # Output: Clustering & PCA ----
           plotOutput(outputId = "clustering",
-                     brush = "plot_brush"),
+                     click = "clustering_click"),
           plotOutput(outputId = "pca",
                      brush = "plot_brush"),
-          uiOutput(outputId = "moreInfoSOM"),
+          uiOutput("downloadButton"),
           htmlOutput("info")
           
         )
@@ -134,9 +134,9 @@ server <- function(input, output, session) {
                  clusteringData$SOM <- som(data.matrix(metabComplete))
                },
                COSA={
-                 #clusteringData$COSA <- cosa2(metabComplete)
+                 clusteringData$COSA <- cosa2(metabComplete, niter = 7, noit = 15)
                  #hclst.cosa <- hierclust(clusteringData$COSA$D)
-                 #clusteringData$COSA$grps <- getclust(hclst.cosa)
+                 #clusteringData$COSA$grps <- getclust(hclst.cosa) ERROR
                },
                DOC={
                  #clusteringData$DOC <- doc(metabComplete)   
@@ -188,7 +188,11 @@ server <- function(input, output, session) {
              SOM={
                #output$clustering <- renderPlot(plot(clusteringData$SOM, type="mapping", classif=predict(clusteringData$SOM)
                #                                     , pchs = c(1,2,3,4,5)))
-               output$clustering <- renderPlot(plotHeatMap(clusteringData$SOM,metabComplete,as.numeric(input$selectedPhenotype)))
+               if (as.numeric(input$selectedPhenotype)==length(finalValues$pheno)){
+                 output$clustering <- renderPlot(plotHeatMap(clusteringData$SOM,finalValues$pheno,0))
+               } else {
+                 output$clustering <- renderPlot(plotHeatMap(clusteringData$SOM,finalValues$pheno,as.numeric(input$selectedPhenotype)))
+               }
              },
              COSA={
                #output$clustering <- renderPlot(smacof(clusteringData$COSA$D, groupnr = clusteringData$COSA$grps , interc = 0))
@@ -302,7 +306,7 @@ server <- function(input, output, session) {
         }
       }
       
-      
+      finalValues$completeData <- inputData
       finalValues$id <- inputData[[tempId]]
       finalValues$metab <- inputData[c(tempStart:tempEnd)]
       finalValues$pheno <- inputData[-c(tempId,c(tempStart:tempEnd))]
@@ -332,32 +336,48 @@ server <- function(input, output, session) {
     }
   })
   
-  #Take phenotypes from different file
-  output$moreInfoSOM <- renderUI({
-    if (input$clusteringType=="SOM"){
-      return(actionButton("moreInfoSOMButton","Select Node for more Info"))
-    } else {
+  output$info <- renderUI({
+    click <- input$clustering_click
+    if (length(clusteringData$SOM)==0)
+      return(" ")
+    xValues <- clusteringData$SOM$grid$pts[,1]
+    yValues <- clusteringData$SOM$grid$pts[,2]
+    allBubbleIds <- 1:nrow(clusteringData$SOM$grid$pts)
+    currentBubbleId <- allBubbleIds[xValues==round(as.numeric(click$x))&yValues==round(as.numeric(click$y))]
+    if (length(currentBubbleId)==0)
+      return(" ")
+    
+    averageInBubble <- clusteringData$SOM$codes[[1]][currentBubbleId,]
+    idsInBubble <- seq_len(nrow(clusteringData$SOM$data[[1]]))[clusteringData$SOM$unit.classif==currentBubbleId]
+    phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
+    phenotypeAverage <- mean(phenotypes[idsInBubble])
+    finalValues$currentIds <- idsInBubble
+    ids <- sprintf("This node (%s, phenotype average of %s) contains the following ids: <br/>%s", currentBubbleId, round(phenotypeAverage, digits = 2), paste(idsInBubble, collapse = ', '))
+    averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageInBubble, SIMPLIFY=FALSE)
+    average <- sprintf("The average values in this node are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
+    
+    HTML(paste(ids, average, sep = '<br/>'))
+  })
+  
+  output$downloadButton <- renderUI({
+    if (length(finalValues$currentIds)==0){
       return(NULL)
+    } else {
+      downloadButton("downloadValues", "Download metabolites of this cluster")
     }
   })
   
-  # Goto Input Validation Panel
-  observeEvent(input$moreInfoSOMButton, {
-    if (length(data())==4){
-      if (dev.interactive()){
-        bubbleId <- identify(clusteringData$SOM,plot=FALSE, n=1)
-        averageInBubble <- somData$codes[[1]][bubbleId,]
-        idsInBubble <- seq_len(1756)[somData$unit.classif==bubbleId]
-        output$info <- renderUI({
-          ids <- sprintf("This node (%s) contains the following ids: <br/>%s", bubbleId, idsInBubble)
-          average <- sprintf("The average values in this node are: <br/>%s", averageInBubble)
-          HTML(paste(ids, average, sep = '<br/>'))
-        })
-      } else {
-        output$info <- renderUI(HTML("Current graphics device is not interactive"))
-      }
-    }
-  })
+  # Downloads the current subset displayed in info
+  output$downloadValues <- downloadHandler(
+    filename = function() {
+      paste("metabolites-", Sys.Date(), ".tsv", sep="")
+    },
+    content = function(file) {
+      dataToDownload <- finalValues$completeData[finalValues$currentIds,]
+      write.table(dataToDownload, file, sep = "\t", dec = ",", row.names=FALSE)
+    },
+    contentType = "text/tab-separated-values"
+  )
   
 }
 
