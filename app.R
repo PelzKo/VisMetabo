@@ -7,6 +7,7 @@ library(kohonen)
 
 source("ReadingData.R")
 source("plotHeatMap.R")
+source("smacofFixed.R")
 
 # Allow Uploads until 200MB
 options(shiny.maxRequestSize=200*1024^2)
@@ -84,8 +85,9 @@ ui <- fluidPage(
         mainPanel(
           
           # Output: Clustering & PCA ----
-          plotOutput(outputId = "clustering",
-                     click = "clustering_click"),
+          #plotOutput(outputId = "clustering",
+          #           click = "clustering_click"),
+          uiOutput("clusteringPlot"),
           plotOutput(outputId = "pca",
                      brush = "plot_brush"),
           uiOutput("downloadButton"),
@@ -135,6 +137,7 @@ server <- function(input, output, session) {
                },
                COSA={
                  clusteringData$COSA <- cosa2(metabComplete, niter = 7, noit = 15)
+                 clusteringData$COSA$smacof <- smacof(clusteringData$COSA$D, niter = 30, interc = 1, VERBOSE = FALSE, PLOT = FALSE)
                  #hclst.cosa <- hierclust(clusteringData$COSA$D)
                  #clusteringData$COSA$grps <- getclust(hclst.cosa) ERROR
                },
@@ -184,8 +187,9 @@ server <- function(input, output, session) {
         output$phenoHist <- renderPlot(hist(phenotype))
       }
       
-      switch(input$clusteringType, 
+      switch(input$clusteringType,
              SOM={
+               output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", click = "clustering_click"))
                #output$clustering <- renderPlot(plot(clusteringData$SOM, type="mapping", classif=predict(clusteringData$SOM)
                #                                     , pchs = c(1,2,3,4,5)))
                if (as.numeric(input$selectedPhenotype)==length(finalValues$pheno)){
@@ -195,12 +199,16 @@ server <- function(input, output, session) {
                }
              },
              COSA={
-               #output$clustering <- renderPlot(smacof(clusteringData$COSA$D, groupnr = clusteringData$COSA$grps , interc = 0))
+               output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
+               output$clustering <- renderPlot(
+                 plotSmacof(clusteringData$COSA$smacof[["X"]], cols = coloredPoints))
              },
              DOC={
+               output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
                #clusteringData$DOC <- doc(metabComplete)   
              },
              {
+               output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
                # default is using Clique
                #output$clustering <- renderPlot(plot(clusteringData$Clique,metabComplete))
              }
@@ -238,14 +246,15 @@ server <- function(input, output, session) {
   })
   
   # Info about the selected points
-  output$info <- renderPrint({
+  output$info <- renderUI({
     # With ggplot2, no need to tell it what the x and y variables are.
     # threshold: set max distance, in pixels
     # maxpoints: maximum number of rows to return
     # addDist: add column with distance, in pixels
     #nearPoints(clusterInfo$visualisation$vectors, input$plot_hover, threshold = 10, maxpoints = 1,
                #addDist = FALSE)
-    #brushedPoints(finalValues$id, input$plot_brush)
+    print("Plot_brush")
+    HTML(brushedPoints(finalValues$metab, input$plot_brush))
   })
   
   # Goto Input Validation Panel
@@ -337,26 +346,63 @@ server <- function(input, output, session) {
   })
   
   output$info <- renderUI({
+    brush <- input$clustering_brush
+    print("Hello")
+    print(brush)
+    switch(input$clusteringType, 
+           SOM={
+           },
+           COSA={
+             points <- brushedPoints(clusteringData$COSA$smacof[["X"]], brush, xvar = "wt", yvar = "mpg")
+           },
+           DOC={
+             #clusteringData$DOC <- doc(metabComplete)   
+           },
+           {
+             # default is using Clique
+             #output$clustering <- renderPlot(plot(clusteringData$Clique,metabComplete))
+           }
+    )
+    HTML("Brushed_Clustering")
+    
+  })
+  
+  
+  output$info <- renderUI({
+    print("Registered a Click")
     click <- input$clustering_click
-    if (length(clusteringData$SOM)==0)
-      return(" ")
-    xValues <- clusteringData$SOM$grid$pts[,1]
-    yValues <- clusteringData$SOM$grid$pts[,2]
-    allBubbleIds <- 1:nrow(clusteringData$SOM$grid$pts)
-    currentBubbleId <- allBubbleIds[xValues==round(as.numeric(click$x))&yValues==round(as.numeric(click$y))]
-    if (length(currentBubbleId)==0)
-      return(" ")
+    switch(input$clusteringType, 
+           SOM={
+             if (length(clusteringData$SOM)==0)
+               return(" ")
+             xValues <- clusteringData$SOM$grid$pts[,1]
+             yValues <- clusteringData$SOM$grid$pts[,2]
+             allBubbleIds <- 1:nrow(clusteringData$SOM$grid$pts)
+             currentBubbleId <- allBubbleIds[xValues==round(as.numeric(click$x))&yValues==round(as.numeric(click$y))]
+             if (length(currentBubbleId)==0)
+               return(" ")
+             
+             averageInBubble <- clusteringData$SOM$codes[[1]][currentBubbleId,]
+             idsInBubble <- seq_len(nrow(clusteringData$SOM$data[[1]]))[clusteringData$SOM$unit.classif==currentBubbleId]
+             phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
+             phenotypeAverage <- mean(phenotypes[idsInBubble])
+             finalValues$currentIds <- idsInBubble
+             ids <- sprintf("This node (%s, phenotype average of %s) contains the following ids: <br/>%s", currentBubbleId, round(phenotypeAverage, digits = 2), paste(idsInBubble, collapse = ', '))
+             averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageInBubble, SIMPLIFY=FALSE)
+             average <- sprintf("The average values in this node are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
+             
+             HTML(paste(ids, average, sep = '<br/>'))
+           },
+           COSA={
+           },
+           DOC={  
+           },
+           {
+             # default is using Clique
+           }
+    )
+    HTML("Clicked")
     
-    averageInBubble <- clusteringData$SOM$codes[[1]][currentBubbleId,]
-    idsInBubble <- seq_len(nrow(clusteringData$SOM$data[[1]]))[clusteringData$SOM$unit.classif==currentBubbleId]
-    phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
-    phenotypeAverage <- mean(phenotypes[idsInBubble])
-    finalValues$currentIds <- idsInBubble
-    ids <- sprintf("This node (%s, phenotype average of %s) contains the following ids: <br/>%s", currentBubbleId, round(phenotypeAverage, digits = 2), paste(idsInBubble, collapse = ', '))
-    averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageInBubble, SIMPLIFY=FALSE)
-    average <- sprintf("The average values in this node are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
-    
-    HTML(paste(ids, average, sep = '<br/>'))
   })
   
   output$downloadButton <- renderUI({
