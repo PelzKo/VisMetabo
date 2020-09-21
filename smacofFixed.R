@@ -69,6 +69,14 @@ plotSmacof <- function(xx, main = "Multidimensional Scaling", pch = 16, cols = "
   )
 }
 
+plotNoLims <- function(xx, main = "Plot", pch = 16, cols = "black", ...){
+  plot(xx,
+       xlab = "Dimension 1", ylab = "Dimension 2",
+       main = main,
+       xaxs = "i", yaxs = "i", pch = pch, col = cols, ...
+  )
+}
+
 bmat <- function(odist, fdist) {
   n <- nrow(odist)
   nnn <- matrix(0, nrow = n, ncol = n)
