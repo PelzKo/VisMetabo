@@ -5,11 +5,13 @@ library(ggplot2)
 library(ggfortify)
 library(rCOSA)
 library(kohonen)
+library(rJava)
 
 source("ReadingData.R")
 source("plotHeatMap.R")
 source("smacofFixed.R")
 source("testCliqueVis.R")
+source("doc.R")
 
 # Allow Uploads until 200MB
 options(shiny.maxRequestSize=200*1024^2)
@@ -158,7 +160,7 @@ server <- function(input, output, session) {
                  print("Hello")
                },
                DOC={
-                 #clusteringData$DOC <- doc(metabComplete)   
+                 clusteringData$DOC <- runDoc(metabComplete)   
                },
                {
                  # default is using Clique

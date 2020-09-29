@@ -9,8 +9,11 @@ runDoc <- function(data){
 getIdsDoc <- function(cluster){
   clusterApplier <- .jnew("ClusterApplier")
   ids <- .jcall(clusterApplier, "[[D", "getIds",cluster, simplify = T)
+  if (class(ids)[[1]]!='list'){
+    ids <- split(ids, rep(1:nrow(ids), each = ncol(ids)))
+  }
   .jcheck()
-  unlist(lapply(ids,function(x){x-min(unlist(ids))+1}))
+  lapply(ids,function(x){x-min(unlist(ids))+1})
   
 }
 
