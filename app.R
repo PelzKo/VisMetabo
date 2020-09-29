@@ -146,7 +146,7 @@ server <- function(input, output, session) {
                  #clusteringData$COSA$smacof <- smacof(clusteringData$COSA$D, niter = 30, interc = 1, VERBOSE = FALSE, PLOT = FALSE)
                  clusteringData$COSA <- cosa2(metabComplete, niter = 1, noit = 1)
                  clusteringData$COSA$smacof <- smacof(clusteringData$COSA$D, niter = 1, interc = 1, VERBOSE = FALSE, PLOT = FALSE)
-                 clusteringData$COSA$idsAndSmacof <- data.frame(cbind(finalValues$id,clusteringData$COSA$smacof$X))
+                 clusteringData$COSA$idsAndSmacof <- data.frame(cbind(names(finalValues$idFromNum),clusteringData$COSA$smacof$X))
                  names(clusteringData$COSA$idsAndSmacof) <- c("id","x","y")
                  
                  toggleModal(session, "cosaHist", toggle = "toggle")
@@ -265,7 +265,7 @@ server <- function(input, output, session) {
         ## create a data frame with principal component 1 (PC1), PC2, Conditions and sample names
         df_pca_data = data.frame(PC1 = pca_data$x[,1], PC2 = pca_data$x[,2])
         pcaValues$visualisation <- df_pca_data
-        pcaValues$visWithId <- data.frame(cbind(finalValues$id,pcaValues$visualisation))
+        pcaValues$visWithId <- data.frame(cbind(names(finalValues$idFromNum),pcaValues$visualisation))
         names(pcaValues$visWithId) <- c("id","x","y")
         
       }
@@ -352,8 +352,12 @@ server <- function(input, output, session) {
       finalValues$tempInfo <- "Nothing clicked/brushed yet"
       finalValues$completeData <- inputData
       finalValues$id <- inputData[[tempId]]
-      finalValues$realIds <- seq_len(length(inputData[[tempId]]))
-      names(finalValues$realIds) <- inputData[[tempId]]
+      
+      finalValues$numFromId <- seq_len(length(inputData[[tempId]]))
+      names(finalValues$numFromId) <- inputData[[tempId]]
+      finalValues$idFromNum <- inputData[[tempId]]
+      names(finalValues$idFromNum) <- seq_len(length(inputData[[tempId]]))
+      
       finalValues$metab <- inputData[c(tempStart:tempEnd)]
       finalValues$pheno <- inputData[-c(tempId,c(tempStart:tempEnd))]
       finalValues$pheno$None <- numeric(length(finalValues$id[[1]]))
@@ -394,7 +398,7 @@ server <- function(input, output, session) {
              },
              COSA={
                points <- brushedPoints(clusteringData$COSA$idsAndSmacof, clusteringBrush, xvar = "x", yvar = "y")
-               finalValues$currentIds <- points$id
+               finalValues$currentIds <- finalValues$idFromNum[as.character(points$id)]
                phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
                phenotypeAverage <- mean(phenotypes[points$id])
                averageSelected <- colMeans(finalValues$metab[points$id,])
@@ -416,7 +420,7 @@ server <- function(input, output, session) {
       
     } else if (!is.null(pcaBrush)){
       pointsPCA <- brushedPoints(pcaValues$visWithId, pcaBrush, xvar = "x", yvar = "y")
-      finalValues$currentIds <- pointsPCA$id
+      finalValues$currentIds <- finalValues$idFromNum[as.character(pointsPCA$id)]
       phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
       phenotypeAverage <- mean(phenotypes[pointsPCA$id])
       averageSelected <- colMeans(finalValues$metab[pointsPCA$id,])
@@ -442,7 +446,7 @@ server <- function(input, output, session) {
                averageInBubble <- clusteringData$SOM$codes[[1]][currentBubbleId,]
                
                idsInBubble <- seq_len(nrow(clusteringData$SOM$data[[1]]))[clusteringData$SOM$unit.classif==currentBubbleId]
-               finalValues$currentIds <- names(finalValues$realIds[idsInBubble])
+               finalValues$currentIds <- finalValues$idFromNum[idsInBubble]
                
                phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
                phenotypeAverage <- mean(phenotypes[idsInBubble])
