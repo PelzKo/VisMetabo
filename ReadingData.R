@@ -59,8 +59,7 @@ readFile <- function(filePath, fileSheet = 1){
   }
   
   
-  print("Done")
-  df[1] <- df[1]+200
+  print("Done reading the file")
   
   #metab <- df[c(metab_start_final:metab_end_final)]
   #pheno <- df[-c(metab_start_final:metab_end_final)]

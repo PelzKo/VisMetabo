@@ -6,6 +6,8 @@ library(ggfortify)
 library(rCOSA)
 library(kohonen)
 library(rJava)
+library(ggmap)
+library(ggdendro)
 
 source("ReadingData.R")
 source("utility.R")
@@ -92,7 +94,7 @@ ui <- fluidPage(
           # Output: Clustering & PCA ----
           #plotOutput(outputId = "clustering",
           #           click = "clustering_click"),
-          bsModal("cosaHist", "Histogram of the rCosa", "go", size = "large",plotOutput("hist")),
+          bsModal("cosaHist", "Histogram of the rCosa", "go", size = "large",plotOutput("hist", click = "histClick")),
           uiOutput("clusteringPlot"),
           uiOutput("pcaAll"),
           uiOutput("downloadButton"),
@@ -154,11 +156,11 @@ server <- function(input, output, session) {
                  output$hist <- renderPlot({ #AHHHHHH
                    hclst.cosa <- hierclust(clusteringData$COSA$D)
                    #grps.cosa <- getclust(hclst.cosa)
-                   return(hclst.cosa)
+                   ggdendrogram(hclst.cosa)
                  })
-                 print("Hello")
-                 #grps.cosa <- getclust(hclst.cosa)
-                 print("Hello")
+                 grps <- gggetClust(hclst.cosa)
+                   
+                 
                },
                DOC={
                  clusteringData$DOC <- runDoc(metabComplete)
@@ -597,6 +599,36 @@ vecToCol <- function(data, colors){
     counter <- counter + 1
   }
   result
+}
+
+gggetClust <- function (hc, ngr = 20, rec.col = "blue", old.col = "blue") 
+{
+  retval <- list()
+  oldk <- NULL
+  oldx <- NULL
+  cat("Showing dynamic visualisation. Press Escape/Ctrl + C to stop.")
+  for (n in 1:ngr) {
+    x <- gglocator(1)
+    if (is.null(x)) {
+      break
+    }
+    k <- min(which(rev(hc$height) < x$y))
+    k <- max(k, 2)
+    if (!is.null(oldx)) {
+      rect.hclust(hc, k = oldk, x = oldx, border = old.col)
+    }
+    retval[[n]] <- unlist(rect.hclust(hc, k = k, x = x$x, 
+                                      border = rec.col))
+    oldx <- x$x
+    oldk <- k
+    ngr <- n
+  }
+  grps <- rep(0, length(hc$order))
+  for (n in 1:ngr) {
+    grps[retval[[n]]] <- n
+  }
+  names(retval) <- paste("grp", 1:n, sep = "")
+  invisible(list(grps = grps, index = retval))
 }
 
 equalsBrush <- function(one,two){
