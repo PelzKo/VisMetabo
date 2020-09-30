@@ -16,7 +16,7 @@ foo <- cmdscale(d, k = 2)
 
 test <- list(c(1,2,3,4),c(1,3,4),c(1,2))
 
-plotFromClusters <- function(clus, label = TRUE, colorCluster = 0, colors = NULL){
+plotFromClusters <- function(clus, label = TRUE, colorCluster = 0, colors = NULL, returnMDS = FALSE){
   numberNodes <- max(unlist(clus))
   n <- length(clus)+1
   m <- matrix(n,nrow=numberNodes,ncol = numberNodes)
@@ -40,6 +40,9 @@ plotFromClusters <- function(clus, label = TRUE, colorCluster = 0, colors = NULL
     }
   }
   mds <- cmdscale(m, k = 2)
+  if (returnMDS){
+    return(mds)
+  }
   pl <- plot(mds, pch = 16, col = cols)
   if (label){
     text(mds, row.names(mds), cex=0.6, pos=4, col="red")

@@ -118,7 +118,7 @@ server <- function(input, output, session) {
   # Transformed/normalized data
   finalValues <- reactiveValues(id = 1, metab = list(), pheno = list())
   # Clusters
-  clusteringData <- reactiveValues(Clique = list(), SOM = list(), COSA = list(), DOC = list())
+  clusteringData <- reactiveValues(Clique = list(), CliqueMDS = list(), SOM = list(), COSA = list(), DOC = list())
   # PCAData
   pcaValues <- reactiveValues()
   
@@ -150,8 +150,8 @@ server <- function(input, output, session) {
                  toggleModal(session, "cosaHist", toggle = "toggle")
                  output$hist <- renderPlot({ #AHHHHHH
                    hclst.cosa <- hierclust(clusteringData$COSA$D)
-                   return(hclst.cosa)
                    #grps.cosa <- getclust(hclst.cosa)
+                   return(hclst.cosa)
                  })
                  print("Hello")
                  grps.cosa <- getclust(hclst.cosa)
@@ -163,6 +163,11 @@ server <- function(input, output, session) {
                {
                  # default is using Clique
                  clusteringData$Clique <- CLIQUE(metabComplete) 
+                 
+                 cliqueMDSValues <- plotFromClusters(lapply(clusteringData$Clique, `[[`, "objects"), returnMDS = TRUE)
+                 clusteringData$CliqueMDS <- data.frame(cbind(seq_len(nrow(cliqueMDSValues)),cliqueMDSValues))
+                 names(clusteringData$CliqueMDS) <- c("id","x","y")
+                 
                }
         )
       }
@@ -235,6 +240,7 @@ server <- function(input, output, session) {
              {
                output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
                # default is using Clique
+               
                output$clustering <- renderPlot(plotFromClusters(lapply(clusteringData$Clique, `[[`, "objects"), label = FALSE, colors = coloredPoints))
                
                
@@ -408,7 +414,17 @@ server <- function(input, output, session) {
              },
              {
                # default is using Clique
-               #output$clustering <- renderPlot(plot(clusteringData$Clique,metabComplete))
+               points <- brushedPoints(clusteringData$CliqueMDS, clusteringBrush, xvar = "x", yvar = "y")
+               finalValues$currentIds <- points$id
+               phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
+               phenotypeAverage <- mean(phenotypes[points$id])
+               averageSelected <- colMeans(finalValues$metab[points$id,])
+               
+               ids <- sprintf("The area you selected (phenotype average of %s), contains the following ids: <br/>%s", round(phenotypeAverage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
+               averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageSelected, SIMPLIFY=FALSE)
+               average <- sprintf("The average values in this area are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
+               
+               finalValues$tempInfo <- paste(ids, average, sep = '<br/>')
              }
       )
       
@@ -485,7 +501,7 @@ server <- function(input, output, session) {
     contentType = "text/tab-separated-values"
   )
   
-  test <- observe({
+  PCASwitchObserver <- observe({
     if(input$pcaSwitch[[1]]&input$clusteringType=="Clique"){
       output$pcaAll <- renderUI({
         return({
