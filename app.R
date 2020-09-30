@@ -8,9 +8,8 @@ library(kohonen)
 library(rJava)
 
 source("ReadingData.R")
-source("plotHeatMap.R")
+source("utility.R")
 source("smacofFixed.R")
-source("testCliqueVis.R")
 source("doc.R")
 
 # Allow Uploads until 200MB
@@ -120,16 +119,18 @@ server <- function(input, output, session) {
   # Transformed/normalized data
   finalValues <- reactiveValues(id = 1, metab = list(), pheno = list())
   # Clusters
-  clusteringData <- reactiveValues(Clique = list(), CliqueMDS = list(), SOM = list(), COSA = list(), DOC = list())
+  clusteringData <- reactiveValues(Clique = list(), CliqueMDS = list(), SOM = list(), COSA = list(), DOC = list(), DocMDS = list())
   # PCAData
   pcaValues <- reactiveValues()
+  #Temp Values to distinguish which click/brush changed
+  temps <- reactiveValues(clusteringClick = NULL,clusteringBrush = NULL, pcaBrush = NULL)
   
   
   output$pca <- renderPlot({
     if (length(data())==4){
       firstRunForClusteringMethod <- length(clusteringData[[input$clusteringType]])==0
       firstPCA <- length(pcaValues$visualisation)==0
-      colorPalette <-colorRampPalette(c("red","white","blue"), space="Lab")(20)
+      colorPalette <- redWhiteBlue(20)
       
       dev.interactive()
       inter <- dev.interactive()
@@ -156,11 +157,15 @@ server <- function(input, output, session) {
                    return(hclst.cosa)
                  })
                  print("Hello")
-                 grps.cosa <- getclust(hclst.cosa)
+                 #grps.cosa <- getclust(hclst.cosa)
                  print("Hello")
                },
                DOC={
-                 clusteringData$DOC <- runDoc(metabComplete)   
+                 clusteringData$DOC <- runDoc(metabComplete)
+                 
+                 docMDSValues <- plotFromClusters(getIdsDoc(clusteringData$DOC), returnMDS = TRUE)
+                 clusteringData$DocMDS <- data.frame(cbind(seq_len(nrow(docMDSValues)),docMDSValues))
+                 names(clusteringData$DocMDS) <- c("id","x","y")
                },
                {
                  # default is using Clique
@@ -237,7 +242,24 @@ server <- function(input, output, session) {
              },
              DOC={
                output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
-               #clusteringData$DOC <- doc(metabComplete)   
+               
+               idsInClustersDoc <- getIdsDoc(clusteringData$DOC)
+               output$clustering <- renderPlot(plotFromClusters(idsInClustersDoc, label = FALSE, colors = coloredPoints))
+               
+               
+               clusterColors <- rep("black",max(unlist(idsInClustersDoc)))
+               if(!is.null(input$clusterId)){
+                 currentCluster <- idsInClustersDoc[[as.numeric(input$clusterId)]]
+                 usedDimensions <- getDimsDoc(clusteringData$DOC)[as.numeric(input$clusterId),]
+                 avgs <- getAvgsDoc(clusteringData$DOC)[as.numeric(input$clusterId),]
+                 metabs <- names(metabComplete)[usedDimensions]
+                 usedMetabs <- sprintf("This cluster was calculed using the following metabolites: <br/>%s", paste(metabs, collapse = '<br/>'))
+                 averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), metabs, avgs, SIMPLIFY=FALSE)
+                 metabAvgs <- sprintf("<br/><br/>The metabolites have the following averages: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
+                 output$metabUsed <- renderUI(HTML(paste(usedMetabs,metabAvgs)))
+                 
+                 clusterColors[currentCluster] <- "red"
+               } 
              },
              {
                output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
@@ -254,8 +276,6 @@ server <- function(input, output, session) {
                  output$metabUsed <- renderUI(HTML(usedMetabs))
                  
                  clusterColors[currentCluster$objects] <- "red"
-               } else {
-                 #output$metabUsed <- HTML("No cluster selected")
                }
              }
       )
@@ -398,7 +418,7 @@ server <- function(input, output, session) {
     clusteringBrush <- input$clustering_brush
     pcaBrush <- input$pca_brush
     
-    if (!is.null(clusteringBrush)){
+    if (!is.null(clusteringBrush)&!equalsBrush(temps$clusteringBrush,clusteringBrush)){
       switch(input$clusteringType, 
              SOM={
              },
@@ -416,12 +436,22 @@ server <- function(input, output, session) {
                finalValues$tempInfo <- paste(ids, average, sep = '<br/>')
              },
              DOC={
-                 
+               points <- brushedPoints(clusteringData$DocMDS, clusteringBrush, xvar = "x", yvar = "y")
+               finalValues$currentIds <- finalValues$idFromNum[as.character(points$id)]
+               phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
+               phenotypeAverage <- mean(phenotypes[points$id])
+               averageSelected <- colMeans(finalValues$metab[points$id,])
+               
+               ids <- sprintf("The area you selected (phenotype average of %s), contains the following ids: <br/>%s", round(phenotypeAverage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
+               averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageSelected, SIMPLIFY=FALSE)
+               average <- sprintf("The average values in this area are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
+               
+               finalValues$tempInfo <- paste(ids, average, sep = '<br/>')
              },
              {
                # default is using Clique
                points <- brushedPoints(clusteringData$CliqueMDS, clusteringBrush, xvar = "x", yvar = "y")
-               finalValues$currentIds <- points$id
+               finalValues$currentIds <- finalValues$idFromNum[as.character(points$id)]
                phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
                phenotypeAverage <- mean(phenotypes[points$id])
                averageSelected <- colMeans(finalValues$metab[points$id,])
@@ -434,7 +464,7 @@ server <- function(input, output, session) {
              }
       )
       
-    } else if (!is.null(pcaBrush)){
+    } else if (!is.null(pcaBrush)&!equalsBrush(temps$pcaBrush,pcaBrush)){
       pointsPCA <- brushedPoints(pcaValues$visWithId, pcaBrush, xvar = "x", yvar = "y")
       finalValues$currentIds <- finalValues$idFromNum[as.character(pointsPCA$id)]
       phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
@@ -447,7 +477,7 @@ server <- function(input, output, session) {
       
       finalValues$tempInfo <- paste(ids, average, sep = '<br/>')
       
-    } else if (!is.null(clusteringClick)){
+    } else if (!is.null(clusteringClick)&!equalsClick(temps$clusteringClick,clusteringClick)){
       switch(input$clusteringType, 
              SOM={
                if (length(clusteringData$SOM)==0)
@@ -481,7 +511,9 @@ server <- function(input, output, session) {
              }
       )
     }
-    
+    temps$clusteringClick <- clusteringClick
+    temps$clusteringBrush <- clusteringBrush
+    temps$pcaBrush <- pcaBrush
     
     return(HTML(finalValues$tempInfo))
     
@@ -501,14 +533,14 @@ server <- function(input, output, session) {
       paste("metabolites-", Sys.Date(), ".tsv", sep="")
     },
     content = function(file) {
-      dataToDownload <- finalValues$completeData[finalValues$currentIds,]
+      dataToDownload <- finalValues$completeData[finalValues$numFromId[as.character(finalValues$currentIds)],]
       write.table(dataToDownload, file, sep = "\t", dec = ",", row.names=FALSE)
     },
     contentType = "text/tab-separated-values"
   )
   
   PCASwitchObserver <- observe({
-    if(input$pcaSwitch[[1]]&input$clusteringType=="Clique"){
+    if(input$pcaSwitch[[1]]&(input$clusteringType=="Clique"|input$clusteringType=="DOC")){
       output$pcaAll <- renderUI({
         return({
             fluidRow(
@@ -525,7 +557,12 @@ server <- function(input, output, session) {
             )
           })
         })
-      columns <- seq_len(length(clusteringData$Clique))
+      if (input$clusteringType=="Clique"){
+        len <- length(clusteringData$Clique)
+      } else {
+        len <- length(getIdsDoc(clusteringData$DOC))
+      }
+      columns <- seq_len(len)
       updateSelectInput(session, "clusterId", choices = columns)
     } else {
       output$pcaAll <- renderUI({
@@ -562,25 +599,27 @@ vecToCol <- function(data, colors){
   result
 }
 
-doc <- function(data, alpha, beta, w){
-  arr <- java_object_from_data(data)
-  #Now that the data is in the correct format, we can call into our Java Code that will then call into the
-  #actual implementation of the Algorithm
-  res <- rJava::.jcall("ClusteringApplier",returnSig="[Li9/subspace/base/Cluster;",method="fires",arr,
-                       base_dbscan_epsilon,
-                       as.integer(base_dbscan_minpts),
-                       minimumpercent,
-                       as.integer(k),
-                       as.integer(mu),
-                       as.integer(minclu),
-                       split,
-                       post_dbscan_epsilon,
-                       as.integer(post_dbscan_minpts),
-                       evalArray=F)
-  #We can then turn the Java Clustering Object that was returned into an R-Friendly S3-Object
-  res <- r_clusters_from_java_clusters(res)
-  return(res)
-  
+equalsBrush <- function(one,two){
+  if (is.null(one)){
+    if (is.null(two)){
+      return(TRUE)
+    }
+    return(FALSE)
+  } else if (is.null(two)) {
+    return(FALSE)
+  }
+  return(one$xmin==two$xmin&one$xmax==two$xmax&one$ymin==two$ymin&one$ymax==two$ymax)
+}
+equalsClick <- function(one,two){
+  if (is.null(one)){
+    if (is.null(two)){
+      return(TRUE)
+    }
+    return(FALSE)
+  } else if (is.null(two)) {
+    return(FALSE)
+  }
+  return(one$x==two$x&one$y==two$y)
 }
 
 

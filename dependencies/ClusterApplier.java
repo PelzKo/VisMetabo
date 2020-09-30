@@ -92,6 +92,14 @@ public class ClusterApplier {
         }
         return output;
     }
+	
+	public static String[] getPrototypeTypes (Cluster<SubspaceModel>[] clusters){
+        String[] output= new String[clusters.length];
+        for (int i = 0; i<clusters.length;i++){
+            output[i] = clusters[i].getModel().getPrototypeType();
+        }
+        return output;
+    }
 
     private static double[] arrayToDouble(ArrayList<Integer> ints){
         double[] result = new double[ints.size()];
