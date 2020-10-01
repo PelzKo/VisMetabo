@@ -6,8 +6,8 @@ library(ggfortify)
 library(rCOSA)
 library(kohonen)
 library(rJava)
-library(ggmap)
-library(ggdendro)
+#library(ggmap)
+#library(ggdendro)
 
 source("ReadingData.R")
 source("utility.R")
@@ -155,10 +155,10 @@ server <- function(input, output, session) {
                  toggleModal(session, "cosaHist", toggle = "toggle")
                  output$hist <- renderPlot({ #AHHHHHH
                    hclst.cosa <- hierclust(clusteringData$COSA$D)
-                   #grps.cosa <- getclust(hclst.cosa)
-                   ggdendrogram(hclst.cosa)
+                   grps.cosa <- getclust(hclst.cosa)
+                   #ggdendrogram(hclst.cosa)
                  })
-                 grps <- gggetClust(hclst.cosa)
+                 #grps <- gggetClust(hclst.cosa)
                    
                  
                },
@@ -250,7 +250,7 @@ server <- function(input, output, session) {
                
                
                clusterColors <- rep("black",max(unlist(idsInClustersDoc)))
-               if(!is.null(input$clusterId)){
+               if(!is.null(input$clusterId)&input$pcaSwitch[[1]]){
                  currentCluster <- idsInClustersDoc[[as.numeric(input$clusterId)]]
                  usedDimensions <- getDimsDoc(clusteringData$DOC)[as.numeric(input$clusterId),]
                  avgs <- getAvgsDoc(clusteringData$DOC)[as.numeric(input$clusterId),]
