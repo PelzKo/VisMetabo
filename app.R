@@ -127,7 +127,7 @@ server <- function(input, output, session) {
   pcaValues <- reactiveValues()
   #Temp Values to distinguish which click/brush changed
   temps <- reactiveValues(clusteringClick = NULL,clusteringBrush = NULL, pcaBrush = NULL, index = list(),
-                          oldk = NULL, oldx = NULL, hc = NULL, grps = c(0), id = 1, clickHist = NULL, secondTime = FALSE, rects = data.frame(x1=NULL,y1=NULL,x2=NULL,y2=NULL,border=NULL))
+                          oldk = NULL, oldx = NULL, hc = NULL, grps = c(0), id = 1, clickHist = NULL, rects = data.frame(x1=NULL,y1=NULL,x2=NULL,y2=NULL,border=NULL))
   
   
   output$pca <- renderPlot({
@@ -136,8 +136,6 @@ server <- function(input, output, session) {
       firstPCA <- length(pcaValues$visualisation)==0
       colorPalette <- redWhiteBlue(20)
       
-      dev.interactive()
-      inter <- dev.interactive()
       
       metabComplete <- data.frame(scale(finalValues$metab))
       
@@ -155,7 +153,6 @@ server <- function(input, output, session) {
                  names(clusteringData$COSA$idsAndSmacof) <- c("id","x","y")
                  
                  toggleModal(session, "cosaHist", toggle = "toggle")
-                 #grps <- gggetClust(hclst.cosa)
                    
                  
                },
@@ -238,6 +235,12 @@ server <- function(input, output, session) {
                output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
                output$clustering <- renderPlot(
                  plotSmacof(clusteringData$COSA$smacof[["X"]], cols = coloredPoints))
+               
+               clusterColors <- rep("black",max(unlist(clusteringData$Clique)))
+               if(!is.null(input$clusterId)){
+                 currentCluster <- temps$index[[as.numeric(input$clusterId)]]
+                 clusterColors[currentCluster] <- "red"
+               }
              },
              DOC={
                output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
@@ -539,7 +542,7 @@ server <- function(input, output, session) {
   )
   
   PCASwitchObserver <- observe({
-    if(input$pcaSwitch[[1]]&(input$clusteringType=="Clique"|input$clusteringType=="DOC")){
+    if(input$pcaSwitch[[1]]&!input$clusteringType=="SOM"){
       output$pcaAll <- renderUI({
         return({
             fluidRow(
@@ -558,8 +561,10 @@ server <- function(input, output, session) {
         })
       if (input$clusteringType=="Clique"){
         len <- length(clusteringData$Clique)
-      } else {
+      } else if (input$clusteringType=="DOC"){
         len <- length(getIdsDoc(clusteringData$DOC))
+      } else {
+        len <- length(temps$index)
       }
       columns <- seq_len(len)
       updateSelectInput(session, "clusterId", choices = columns)
@@ -571,59 +576,15 @@ server <- function(input, output, session) {
     }
   })
   
-  SelectClusters <- observeEvent(input$clickHistLL, {
-    if (is.null(clusteringData$COSA$hist)){
-      return()
-    }
-    rec.col = "blue"
-    old.col = "blue"
-    
-    retval <- temps$index #list()
-    oldk <- temps$oldk #NULL
-    oldx <- temps$oldx #NULL
-    id <- temps$id #1
-    cat("Showing dynamic visualisation. Press Escape/Ctrl + C to stop.")
-    
-      x <- input$clickHist
-      if (is.null(x)) {
-        break
-      }
-      k <- min(which(rev(clusteringData$COSA$hist$height) < x$y))
-      k <- max(k, 2)
-      if (!is.null(oldx)) {
-        rect.hclust(clusteringData$COSA$hist, k = oldk, x = oldx, border = old.col)
-      }
-      retval[[temps$id]] <- unlist(rect.hclust(clusteringData$COSA$hist, k = k, x = x$x, 
-                                        border = rec.col))
-      temps$oldx <- x$x
-      temps$oldk <- k
-    
-    grps <- temps$grps #grps <- rep(0, length(hc$order))
-    grps[retval[[temps$id]]] <- temps$id
-    
-    names(retval) <- paste("grp", 1:temps$id, sep = "")
-    temps$id <- temps$id+1
-    invisible(list(grps = grps, index = retval))
-  })
-  
   output$hist <- renderPlot({
     if (length(clusteringData$COSA)>0){
       if (is.null(clusteringData$COSA$hist)){
         clusteringData$COSA$hist <- hierclust(clusteringData$COSA$D, denplot = FALSE)
       }
-      #display <- hierclust(clusteringData$COSA$D, denplot = FALSE)
-      #clusteringData$COSA$hist <- display
+      
       if (!is.null(input$clickHist)){
-        if (is.null(clusteringData$COSA$hist)){
+        if (is.null(clusteringData$COSA$hist)|equalsClick(input$clickHist,temps$clickHist)){
           return(clusteringData$COSA$hist)
-        }
-        secondTimeValue = FALSE #TRUE
-        if (equalsClick(input$clickHist,temps$clickHist)){
-          if (!temps$secondTime){
-            return(clusteringData$COSA$hist)
-          } else {
-            secondTimeValue <- FALSE
-          }
         }
         rec.col = "blue"
         old.col = "blue"
@@ -648,7 +609,7 @@ server <- function(input, output, session) {
         temps$oldx <- x$x
         temps$oldk <- k
         
-        grps <- temps$grps #grps <- rep(0, length(hc$order))
+        grps <- temps$grps
         grps[retval[[temps$id]]] <- temps$id
         
         names(retval) <- paste("grp", 1:temps$id, sep = "")
@@ -657,7 +618,6 @@ server <- function(input, output, session) {
         temps$grps <- grps
         temps$index <- unique(retval)
         #invisible(list(grps = grps, index = retval))
-        temps$secondTime <- secondTimeValue
       }
       outPlot <- ggplot(clusteringData$COSA$hist$dendro)
       if (nrow(temps$rects)>0){
@@ -735,37 +695,7 @@ vecToCol <- function(data, colors){
   }
   result
 }
-
-gggetClust <- function (hc, ngr = 20, rec.col = "blue", old.col = "blue") 
-{
-  retval <- list()
-  oldk <- NULL
-  oldx <- NULL
-  cat("Showing dynamic visualisation. Press Escape/Ctrl + C to stop.")
-  for (n in 1:ngr) {
-    x <- gglocator(1)
-    if (is.null(x)) {
-      break
-    }
-    k <- min(which(rev(hc$height) < x$y))
-    k <- max(k, 2)
-    if (!is.null(oldx)) {
-      rect.hclust(hc, k = oldk, x = oldx, border = old.col)
-    }
-    retval[[n]] <- unlist(rect.hclust(hc, k = k, x = x$x, 
-                                      border = rec.col))
-    oldx <- x$x
-    oldk <- k
-    ngr <- n
-  }
-  grps <- rep(0, length(hc$order))
-  for (n in 1:ngr) {
-    grps[retval[[n]]] <- n
-  }
-  names(retval) <- paste("grp", 1:n, sep = "")
-  invisible(list(grps = grps, index = retval))
-}
-
+#Equa
 equalsBrush <- function(one,two){
   if (is.null(one)){
     if (is.null(two)){
