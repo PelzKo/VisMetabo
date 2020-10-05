@@ -264,8 +264,8 @@ server <- function(input, output, session) {
                } 
              },
              {
-               output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
                # default is using Clique
+               output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
                
                output$clustering <- renderPlot(plotFromClusters(lapply(clusteringData$Clique, `[[`, "objects"), label = FALSE, colors = coloredPoints))
                
@@ -303,7 +303,7 @@ server <- function(input, output, session) {
         coloredPointsPCA <- clusterColors
       }
       
-      plotNoLims(pcaValues$visualisation, cols = coloredPointsPCA)
+      plotNoLims(pcaValues$visualisation, "PCA - PC1 vs PC2", sprintf("PC1 (%s%%)",pcaValues$percentage[[1]]),sprintf("PC2 (%s%%)",pcaValues$percentage[[2]]), cols = coloredPointsPCA)
     }
   })
   
