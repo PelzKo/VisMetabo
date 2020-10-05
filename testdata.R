@@ -1,5 +1,5 @@
 testdata <- function(){
-  data <- readFile("C:\\Users\\Konstantin\\Desktop\\Uni\\6Semester\\BachelorArbeit\\BeispielDaten\\metabExampleMaleFemale.xlsx")
+  data <- readFile("C:\\Users\\Konstantin\\Desktop\\Uni\\6Semester\\BachelorArbeit\\BeispielDaten\\metabExampleMaleFemaleSMALLSET50.xlsx")
   #data <- readFile("C:\\Users\\Konstantin\\Desktop\\Uni\\6.Semester\\BachelorArbeit\\data\\QMDiab_aminoGlucose.xlsx")
   inputData <- data$values[complete.cases(data$values), ]
   

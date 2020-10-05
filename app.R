@@ -8,6 +8,7 @@ library(kohonen)
 library(rJava)
 #library(ggmap)
 #library(ggdendro)
+#library(dendextend)
 
 source("ReadingData.R")
 source("utility.R")
@@ -94,7 +95,7 @@ ui <- fluidPage(
           # Output: Clustering & PCA ----
           #plotOutput(outputId = "clustering",
           #           click = "clustering_click"),
-          bsModal("cosaHist", "Histogram of the rCosa", "go", size = "large",plotOutput("hist", click = "histClick")),
+          bsModal("cosaHist", "Histogram of the rCosa", "go", size = "large",plotOutput("hist", click = "clickHist")),
           uiOutput("clusteringPlot"),
           uiOutput("pcaAll"),
           uiOutput("downloadButton"),
@@ -125,7 +126,8 @@ server <- function(input, output, session) {
   # PCAData
   pcaValues <- reactiveValues()
   #Temp Values to distinguish which click/brush changed
-  temps <- reactiveValues(clusteringClick = NULL,clusteringBrush = NULL, pcaBrush = NULL)
+  temps <- reactiveValues(clusteringClick = NULL,clusteringBrush = NULL, pcaBrush = NULL, index = list(),
+                          oldk = NULL, oldx = NULL, hc = NULL, grps = c(0), id = 1, clickHist = NULL, secondTime = FALSE, rects = data.frame(x1=NULL,y1=NULL,x2=NULL,y2=NULL,border=NULL))
   
   
   output$pca <- renderPlot({
@@ -153,11 +155,6 @@ server <- function(input, output, session) {
                  names(clusteringData$COSA$idsAndSmacof) <- c("id","x","y")
                  
                  toggleModal(session, "cosaHist", toggle = "toggle")
-                 output$hist <- renderPlot({ #AHHHHHH
-                   hclst.cosa <- hierclust(clusteringData$COSA$D)
-                   grps.cosa <- getclust(hclst.cosa)
-                   #ggdendrogram(hclst.cosa)
-                 })
                  #grps <- gggetClust(hclst.cosa)
                    
                  
@@ -574,6 +571,144 @@ server <- function(input, output, session) {
     }
   })
   
+  SelectClusters <- observeEvent(input$clickHistLL, {
+    if (is.null(clusteringData$COSA$hist)){
+      return()
+    }
+    rec.col = "blue"
+    old.col = "blue"
+    
+    retval <- temps$index #list()
+    oldk <- temps$oldk #NULL
+    oldx <- temps$oldx #NULL
+    id <- temps$id #1
+    cat("Showing dynamic visualisation. Press Escape/Ctrl + C to stop.")
+    
+      x <- input$clickHist
+      if (is.null(x)) {
+        break
+      }
+      k <- min(which(rev(clusteringData$COSA$hist$height) < x$y))
+      k <- max(k, 2)
+      if (!is.null(oldx)) {
+        rect.hclust(clusteringData$COSA$hist, k = oldk, x = oldx, border = old.col)
+      }
+      retval[[temps$id]] <- unlist(rect.hclust(clusteringData$COSA$hist, k = k, x = x$x, 
+                                        border = rec.col))
+      temps$oldx <- x$x
+      temps$oldk <- k
+    
+    grps <- temps$grps #grps <- rep(0, length(hc$order))
+    grps[retval[[temps$id]]] <- temps$id
+    
+    names(retval) <- paste("grp", 1:temps$id, sep = "")
+    temps$id <- temps$id+1
+    invisible(list(grps = grps, index = retval))
+  })
+  
+  output$hist <- renderPlot({
+    if (length(clusteringData$COSA)>0){
+      if (is.null(clusteringData$COSA$hist)){
+        clusteringData$COSA$hist <- hierclust(clusteringData$COSA$D, denplot = FALSE)
+      }
+      #display <- hierclust(clusteringData$COSA$D, denplot = FALSE)
+      #clusteringData$COSA$hist <- display
+      if (!is.null(input$clickHist)){
+        if (is.null(clusteringData$COSA$hist)){
+          return(clusteringData$COSA$hist)
+        }
+        secondTimeValue = FALSE #TRUE
+        if (equalsClick(input$clickHist,temps$clickHist)){
+          if (!temps$secondTime){
+            return(clusteringData$COSA$hist)
+          } else {
+            secondTimeValue <- FALSE
+          }
+        }
+        rec.col = "blue"
+        old.col = "blue"
+        
+        retval <- temps$index #list()
+        oldk <- temps$oldk #NULL
+        oldx <- temps$oldx #NULL
+        id <- temps$id #1
+        cat("Showing dynamic visualisation. Press Escape/Ctrl + C to stop.")
+        
+        x <- input$clickHist
+        if (is.null(x)) {
+          break
+        }
+        k <- min(which(rev(clusteringData$COSA$hist$height) < x$y))
+        k <- max(k, 2)
+        if (!is.null(oldx)) {
+          modifiedRect(clusteringData$COSA$hist, k = oldk, x = oldx, border = old.col)
+        }
+        retval[[temps$id]] <- unlist(modifiedRect(clusteringData$COSA$hist, k = k, x = x$x, 
+                                                 border = rec.col))
+        temps$oldx <- x$x
+        temps$oldk <- k
+        
+        grps <- temps$grps #grps <- rep(0, length(hc$order))
+        grps[retval[[temps$id]]] <- temps$id
+        
+        names(retval) <- paste("grp", 1:temps$id, sep = "")
+        temps$id <- temps$id+1
+        temps$clickHist <- x
+        temps$grps <- grps
+        temps$index <- unique(retval)
+        #invisible(list(grps = grps, index = retval))
+        temps$secondTime <- secondTimeValue
+      }
+      outPlot <- ggplot(clusteringData$COSA$hist$dendro)
+      if (nrow(temps$rects)>0){
+        outPlot <- outPlot + geom_rect(data = temps$rects, mapping=aes(xmin=x1, xmax=x2, ymin=y1, ymax=y2), color="blue")
+      }
+      outPlot
+    }
+  })
+  
+  modifiedRect <- function (tree, k = NULL, which = NULL, x = NULL, h = NULL, 
+                            border = 2, cluster = NULL) {
+    if (length(h) > 1L | length(k) > 1L) 
+      stop("'k' and 'h' must be a scalar")
+    if (!is.null(h)) {
+      if (!is.null(k)) 
+        stop("specify exactly one of 'k' and 'h'")
+      k <- min(which(rev(tree$height) < h))
+      k <- max(k, 2)
+    }
+    else if (is.null(k)) 
+      stop("specify exactly one of 'k' and 'h'")
+    if (k < 2 | k > length(tree$height)) 
+      stop(gettextf("k must be between 2 and %d", length(tree$height)), 
+           domain = NA)
+    if (is.null(cluster)) 
+      cluster <- cutree(tree, k = k)
+    clustab <- table(cluster)[unique(cluster[tree$order])]
+    m <- c(0, cumsum(clustab))
+    if (!is.null(x)) {
+      if (!is.null(which)) 
+        stop("specify exactly one of 'which' and 'x'")
+      which <- x
+      for (n in seq_along(x)) which[n] <- max(which(m < x[n]))
+    }
+    else if (is.null(which)) 
+      which <- 1L:k
+    if (any(which > k)) 
+      stop(gettextf("all elements of 'which' must be between 1 and %d", 
+                    k), domain = NA)
+    border <- rep_len(border, length(which))
+    retval <- list()
+    for (n in seq_along(which)) {
+      newRow <- data.frame(x1=m[which[n]] + 0.66, y1=par("usr")[3L], x2=m[which[n] + 1] + 0.33, y2=mean(rev(tree$height)[(k - 1):k]), border=border[n])
+      temps$rects <- rbind(temps$rects, newRow)
+      retval[[n]] <- which(cluster == as.integer(names(clustab)[which[n]]))
+    }
+    temps$rects <- unique.data.frame(temps$rects)
+    invisible(retval)
+  }
+  
+  
 }
 
 #Scales vector to the range 0 to 1
@@ -653,6 +788,8 @@ equalsClick <- function(one,two){
   }
   return(one$x==two$x&one$y==two$y)
 }
+
+
 
 
 # Create Shiny app ----
