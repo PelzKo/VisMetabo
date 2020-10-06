@@ -65,7 +65,7 @@ plotSmacof <- function(xx, main = "Multidimensional Scaling", pch = 16, cols = "
   plot(xx,
        xlab = "Dimension 1", ylab = "Dimension 2",
        main = main, xlim = lims, ylim = lims,
-       xaxs = "i", yaxs = "i", pch = pch, col = cols, ...
+       xaxs = "r", yaxs = "r", pch = pch, col = cols, ...
   )
 }
 
@@ -73,7 +73,7 @@ plotNoLims <- function(xx, main = "Plot", xlab = "Dimension 1", ylab = "Dimensio
   plot(xx,
        xlab = xlab, ylab = ylab,
        main = main,
-       xaxs = "i", yaxs = "i", pch = pch, col = cols, ...
+       xaxs = "r", yaxs = "r", pch = pch, col = cols, ...
   )
 }
 

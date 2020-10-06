@@ -145,10 +145,10 @@ server <- function(input, output, session) {
                  clusteringData$SOM <- som(data.matrix(metabComplete))
                },
                COSA={
-                 #clusteringData$COSA <- cosa2(metabComplete, niter = 7, noit = 15)
-                 #clusteringData$COSA$smacof <- smacof(clusteringData$COSA$D, niter = 30, interc = 1, VERBOSE = FALSE, PLOT = FALSE)
-                 clusteringData$COSA <- cosa2(metabComplete, niter = 1, noit = 1)
-                 clusteringData$COSA$smacof <- smacof(clusteringData$COSA$D, niter = 1, interc = 1, VERBOSE = FALSE, PLOT = FALSE)
+                 clusteringData$COSA <- cosa2(metabComplete, niter = 7, noit = 15)
+                 clusteringData$COSA$smacof <- smacof(clusteringData$COSA$D, niter = 30, interc = 1, VERBOSE = FALSE, PLOT = FALSE)
+                 #clusteringData$COSA <- cosa2(metabComplete, niter = 1, noit = 1)
+                 #clusteringData$COSA$smacof <- smacof(clusteringData$COSA$D, niter = 1, interc = 1, VERBOSE = FALSE, PLOT = FALSE)
                  clusteringData$COSA$idsAndSmacof <- data.frame(cbind(names(finalValues$idFromNum),clusteringData$COSA$smacof$X))
                  names(clusteringData$COSA$idsAndSmacof) <- c("id","x","y")
                  
@@ -284,7 +284,6 @@ server <- function(input, output, session) {
       
       
       if (firstPCA){
-        
         pca_data <- prcomp(metabComplete, scale. = TRUE)
         ## Let us calculat the variances covered by components.
         pca_data_perc=round(100*pca_data$sdev^2/sum(pca_data$sdev^2),1)
