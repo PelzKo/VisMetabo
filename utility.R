@@ -65,7 +65,7 @@ plotHeatMap <- function(som_model, phenotype_data, variable=0){
   }
 }
 
-plotFromClusters <- function(clus, label = TRUE, colorCluster = 0, colors = NULL, returnMDS = FALSE, main = "Classical (Metric) Multidimensional Scaling", xlab = "", ylab = ""){
+plotFromClusters <- function(clus, label = TRUE, colorCluster = 0, colors = NULL, returnMDS = FALSE, main = "Classical (Metric) Multidimensional Scaling", xlab = "", ylab = "",pch = 16){
   numberNodes <- max(unlist(clus))
   n <- length(clus)+1
   m <- matrix(n,nrow=numberNodes,ncol = numberNodes)
@@ -94,7 +94,7 @@ plotFromClusters <- function(clus, label = TRUE, colorCluster = 0, colors = NULL
   }
   pl <- plot(mds, 
              xlab = xlab, ylab = ylab,
-             main = main, pch = 16, col = cols)
+             main = main, pch = pch, col = cols)
   if (label){
     text(mds, row.names(mds), cex=0.6, pos=4, col="red")
   }

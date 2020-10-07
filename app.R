@@ -7,7 +7,7 @@ library(rCOSA)
 library(kohonen)
 library(rJava)
 #library(ggmap)
-#library(ggdendro)
+library(ggdendro)
 #library(dendextend)
 
 source("ReadingData.R")
@@ -222,63 +222,87 @@ server <- function(input, output, session) {
                  output$clustering <- renderPlot(plotHeatMap(clusteringData$SOM,finalValues$pheno,as.numeric(input$selectedPhenotype)))
                }
                
-               clusters <- as.character(sort(unique(clusteringData$SOM$unit.classif)))
-               colorClusters <- rainbow(length(clusters))
-               names(colorClusters) <- clusters
-               clusterColors <- clusteringData$SOM$unit.classif
-               for (num in clusters){
-                 clusterColors <- replace(clusterColors, clusterColors==as.numeric(num), colorClusters[[num]])
+               #clusters <- as.character(sort(unique(clusteringData$SOM$unit.classif)))
+               #colorClusters <- rainbow(length(clusters))
+               #names(colorClusters) <- clusters
+               #clusterColors <- clusteringData$SOM$unit.classif
+               #for (num in clusters){
+               #  clusterColors <- replace(clusterColors, clusterColors==as.numeric(num), colorClusters[[num]])
+               #}
+               clusterNumbers <- rep(16,max(unlist(clusteringData$Clique)))
+               if(!is.null(input$clusterId)){
+                 if (input$clusterId!=0){
+                   clusterNumbers[clusteringData$SOM$unit.classif==input$clusterId] <- 17
+                   output$metabUsed <- renderUI(HTML(sprintf("Cluster %s selected",input$clusterId)))
+                 } else {
+                   output$metabUsed <- renderUI(HTML("No cluster selected"))
+                 }
                }
                
              },
              COSA={
                output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
-               output$clustering <- renderPlot(
-                 plotSmacof(clusteringData$COSA$smacof[["X"]], cols = coloredPoints))
                
-               clusterColors <- rep("black",max(unlist(clusteringData$Clique)))
+               
+               clusterNumbers <- rep(16,max(unlist(clusteringData$Clique)))
                if(!is.null(input$clusterId)){
-                 currentCluster <- temps$index[[as.numeric(input$clusterId)]]
-                 clusterColors[currentCluster] <- "red"
+                 if (input$clusterId!=0){
+                   currentCluster <- temps$index[[as.numeric(input$clusterId)]]
+                   clusterNumbers[currentCluster] <- 17
+                   output$metabUsed <- renderUI(HTML(sprintf("Cluster %s selected",input$clusterId)))
+                 } else {
+                   output$metabUsed <- renderUI(HTML("No cluster selected"))
+                 }
                }
+               
+               output$clustering <- renderPlot(plotSmacof(clusteringData$COSA$smacof[["X"]], cols = coloredPoints, pch = clusterNumbers))
              },
              DOC={
                output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
                
                idsInClustersDoc <- getIdsDoc(clusteringData$DOC)
-               output$clustering <- renderPlot(plotFromClusters(idsInClustersDoc, label = FALSE, colors = coloredPoints))
                
                
-               clusterColors <- rep("black",max(unlist(idsInClustersDoc)))
-               if(!is.null(input$clusterId)&input$pcaSwitch[[1]]){
-                 currentCluster <- idsInClustersDoc[[as.numeric(input$clusterId)]]
-                 usedDimensions <- getDimsDoc(clusteringData$DOC)[as.numeric(input$clusterId),]
-                 avgs <- getAvgsDoc(clusteringData$DOC)[as.numeric(input$clusterId),]
-                 metabs <- names(metabComplete)[usedDimensions]
-                 usedMetabs <- sprintf("This cluster was calculed using the following metabolites: <br/>%s", paste(metabs, collapse = '<br/>'))
-                 averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), metabs, avgs, SIMPLIFY=FALSE)
-                 metabAvgs <- sprintf("<br/><br/>The metabolites have the following averages: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
-                 output$metabUsed <- renderUI(HTML(paste(usedMetabs,metabAvgs)))
-                 
-                 clusterColors[currentCluster] <- "red"
-               } 
+               
+               clusterNumbers <- rep(16,max(unlist(idsInClustersDoc)))
+               if(!is.null(input$clusterId)){#&input$pcaSwitch[[1]]){
+                 if (input$clusterId!=0){
+                   currentCluster <- idsInClustersDoc[[as.numeric(input$clusterId)]]
+                   usedDimensions <- getDimsDoc(clusteringData$DOC)[as.numeric(input$clusterId),]
+                   avgs <- getAvgsDoc(clusteringData$DOC)[as.numeric(input$clusterId),]
+                   metabs <- names(metabComplete)[usedDimensions]
+                   usedMetabs <- sprintf("This cluster was calculed using the following metabolites: <br/>%s", paste(metabs, collapse = '<br/>'))
+                   averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), metabs, avgs, SIMPLIFY=FALSE)
+                   metabAvgs <- sprintf("<br/><br/>The metabolites have the following averages: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
+                   output$metabUsed <- renderUI(HTML(paste(usedMetabs,metabAvgs)))
+                   
+                   clusterNumbers[currentCluster] <- 17
+                 } else {
+                   output$metabUsed <- renderUI(HTML("No cluster selected"))
+                 }  
+               }
+               output$clustering <- renderPlot(plotFromClusters(idsInClustersDoc, label = FALSE, colors = coloredPoints, pch = clusterNumbers))
              },
              {
                # default is using Clique
                output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
                
-               output$clustering <- renderPlot(plotFromClusters(lapply(clusteringData$Clique, `[[`, "objects"), label = FALSE, colors = coloredPoints))
-               
-               
-               clusterColors <- rep("black",max(unlist(clusteringData$Clique)))
+               clusterNumbers <- rep(16,max(unlist(clusteringData$Clique)))
                if(!is.null(input$clusterId)){
-                 currentCluster <- clusteringData$Clique[as.numeric(input$clusterId)][[1]]
-                 metabs <- names(metabComplete)[currentCluster$subspace]
-                 usedMetabs <- sprintf("This cluster was calculed using the following metabolites: <br/>%s", paste(metabs, collapse = '<br/>'))
-                 output$metabUsed <- renderUI(HTML(usedMetabs))
-                 
-                 clusterColors[currentCluster$objects] <- "red"
+                 if (input$clusterId!=0){
+                   currentCluster <- clusteringData$Clique[as.numeric(input$clusterId)][[1]]
+                   metabs <- names(metabComplete)[currentCluster$subspace]
+                   usedMetabs <- sprintf("This cluster was calculed using the following metabolites: <br/>%s", paste(metabs, collapse = '<br/>'))
+                   output$metabUsed <- renderUI(HTML(usedMetabs))
+                   
+                   clusterNumbers[currentCluster$objects] <- 17
+                 } else {
+                   output$metabUsed <- renderUI(HTML("No cluster selected"))
+                 }
                }
+               
+               output$clustering <- renderPlot(plotFromClusters(lapply(clusteringData$Clique, `[[`, "objects"), label = FALSE, colors = coloredPoints, pch = clusterNumbers))
+               
              }
       )
       
@@ -298,11 +322,8 @@ server <- function(input, output, session) {
       }
       
       coloredPointsPCA <- coloredPoints
-      if (input$pcaSwitch[[1]]){
-        coloredPointsPCA <- clusterColors
-      }
       
-      plotNoLims(pcaValues$visualisation, "PCA - PC1 vs PC2", sprintf("PC1 (%s%%)",pcaValues$percentage[[1]]),sprintf("PC2 (%s%%)",pcaValues$percentage[[2]]), cols = coloredPointsPCA)
+      plotNoLims(pcaValues$visualisation, "PCA - PC1 vs PC2", sprintf("PC1 (%s%%)",pcaValues$percentage[[1]]),sprintf("PC2 (%s%%)",pcaValues$percentage[[2]]), cols = coloredPointsPCA, pch = clusterNumbers)
     }
   })
   
@@ -541,7 +562,7 @@ server <- function(input, output, session) {
   )
   
   PCASwitchObserver <- observe({
-    if(input$pcaSwitch[[1]]&!input$clusteringType=="SOM"){
+    if(input$pcaSwitch[[1]]){
       output$pcaAll <- renderUI({
         return({
             fluidRow(
@@ -562,10 +583,14 @@ server <- function(input, output, session) {
         len <- length(clusteringData$Clique)
       } else if (input$clusteringType=="DOC"){
         len <- length(getIdsDoc(clusteringData$DOC))
-      } else {
+      }else {
         len <- length(temps$index)
       }
-      columns <- seq_len(len)
+      
+      columns <- seq(0,len)
+      if (input$clusteringType=="SOM"){
+        columns <- sort(c(0,unique(clusteringData$SOM$unit.classif)))
+      } 
       updateSelectInput(session, "clusterId", choices = columns)
     } else {
       output$pcaAll <- renderUI({
@@ -618,7 +643,7 @@ server <- function(input, output, session) {
         temps$index <- unique(retval)
         #invisible(list(grps = grps, index = retval))
       }
-      outPlot <- ggplot(clusteringData$COSA$hist$dendro)
+      outPlot <- ggdendrogram(clusteringData$COSA$hist$dendro)
       if (nrow(temps$rects)>0){
         outPlot <- outPlot + geom_rect(data = temps$rects, mapping=aes(xmin=x1, xmax=x2, ymin=y1, ymax=y2), color="blue")
       }
