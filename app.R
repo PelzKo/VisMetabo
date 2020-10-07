@@ -234,6 +234,7 @@ server <- function(input, output, session) {
                  if (input$clusterId!=0){
                    clusterNumbers[clusteringData$SOM$unit.classif==input$clusterId] <- 17
                    output$metabUsed <- renderUI(HTML(sprintf("Cluster %s selected",input$clusterId)))
+                   finalValues$idsFromCluster <- finalValues$numFromId[clusteringData$SOM$unit.classif==input$clusterId]
                  } else {
                    output$metabUsed <- renderUI(HTML("No cluster selected"))
                  }
@@ -250,6 +251,7 @@ server <- function(input, output, session) {
                    currentCluster <- temps$index[[as.numeric(input$clusterId)]]
                    clusterNumbers[currentCluster] <- 17
                    output$metabUsed <- renderUI(HTML(sprintf("Cluster %s selected",input$clusterId)))
+                   finalValues$idsFromCluster <- currentCluster
                  } else {
                    output$metabUsed <- renderUI(HTML("No cluster selected"))
                  }
@@ -277,6 +279,7 @@ server <- function(input, output, session) {
                    output$metabUsed <- renderUI(HTML(paste(usedMetabs,metabAvgs)))
                    
                    clusterNumbers[currentCluster] <- 17
+                   finalValues$idsFromCluster <- currentCluster
                  } else {
                    output$metabUsed <- renderUI(HTML("No cluster selected"))
                  }  
@@ -296,6 +299,7 @@ server <- function(input, output, session) {
                    output$metabUsed <- renderUI(HTML(usedMetabs))
                    
                    clusterNumbers[currentCluster$objects] <- 17
+                   finalValues$idsFromCluster <- currentCluster$objects
                  } else {
                    output$metabUsed <- renderUI(HTML("No cluster selected"))
                  }
@@ -362,10 +366,28 @@ server <- function(input, output, session) {
   
   # Reset the saved Clusterings
   observeEvent(input$resetClustering, {
-      clusteringData$Clique = list()
-      clusteringData$SOM = list()
-      clusteringData$COSA = list()
-      clusteringData$DOC = list()
+      switch(input$clusteringType, 
+             SOM={
+               clusteringData$SOM = list()
+             },
+             COSA={
+               clusteringData$COSA = list()
+               temps$index = list()
+               temps$oldk = NULL
+               temps$oldx = NULL
+               temps$hc = NULL
+               temps$grps = c(0)
+               temps$clickHist = NULL
+               temps$rects = data.frame(x1=NULL,y1=NULL,x2=NULL,y2=NULL,border=NULL)
+               },
+             DOC={  
+               clusteringData$DOC = list()
+             },
+             {
+               # default is using Clique
+               clusteringData$Clique = list()
+             }
+      )
   })
       
   # Goto Output Panel
@@ -439,6 +461,7 @@ server <- function(input, output, session) {
     clusteringClick <- input$clustering_click
     clusteringBrush <- input$clustering_brush
     pcaBrush <- input$pca_brush
+    idsFromCluster <- finalValues$idsFromCluster
     
     if (!is.null(clusteringBrush)&!equalsBrush(temps$clusteringBrush,clusteringBrush)){
       switch(input$clusteringType, 
@@ -532,6 +555,18 @@ server <- function(input, output, session) {
                # default is using Clique
              }
       )
+    } else if (!is.null(idsFromCluster)){
+      finalValues$currentIds <- finalValues$idFromNum[as.character(idsFromCluster)]
+      phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
+      phenotypeAverage <- mean(phenotypes[idsFromCluster])
+      averageSelected <- colMeans(finalValues$metab[idsFromCluster,])
+      #if(!is.null(input$clusterId)){
+      
+      ids <- sprintf("The cluster you selected (%s, phenotype average of %s), contains the following ids: <br/>%s", input$clusterId, round(phenotypeAverage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
+      averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageSelected, SIMPLIFY=FALSE)
+      average <- sprintf("The average values in this area are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
+      
+      finalValues$tempInfo <- paste(ids, average, sep = '<br/>')
     }
     temps$clusteringClick <- clusteringClick
     temps$clusteringBrush <- clusteringBrush

@@ -1,0 +1,23 @@
+<component name="libraryTable">
+  <library name="dependencies">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/dependencies/jafama-2.3.1.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependencies/elki-core-dbids-0.7.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependencies/elki-core-util-0.7.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependencies/elki-core-math-0.7.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependencies/fastutil-8.2.2.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependencies/elki-input-0.7.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependencies/elki-core-dbids-int-0.7.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependencies/elki-core-api-0.7.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependencies/elki-core-distance-0.7.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependencies/elki-logging-0.7.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependencies/elki-core-0.7.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependencies/elki-database-0.7.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependencies/Clust.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependencies/elki-clustering-0.7.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependencies/elki-core-data-0.7.5.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
