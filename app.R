@@ -145,7 +145,8 @@ server <- function(input, output, session) {
                  clusteringData$SOM <- som(data.matrix(metabComplete))
                },
                COSA={
-                 clusteringData$COSA <- cosa2(metabComplete, niter = 7, noit = 15)
+                 clusteringData$COSA <- cosa2(metabComplete, niter = 4, noit = 100)
+                 #clusteringData$COSA <- cosa2(metabComplete, niter = 7, noit = 15)
                  clusteringData$COSA$smacof <- smacof(clusteringData$COSA$D, niter = 30, interc = 1, VERBOSE = FALSE, PLOT = FALSE)
                  #clusteringData$COSA <- cosa2(metabComplete, niter = 1, noit = 1)
                  #clusteringData$COSA$smacof <- smacof(clusteringData$COSA$D, niter = 1, interc = 1, VERBOSE = FALSE, PLOT = FALSE)
@@ -230,7 +231,7 @@ server <- function(input, output, session) {
                #for (num in clusters){
                #  clusterColors <- replace(clusterColors, clusterColors==as.numeric(num), colorClusters[[num]])
                #}
-               clusterNumbers <- rep(16,max(unlist(clusteringData$Clique)))
+               clusterNumbers <- rep(16,nrow(metabComplete))
                if(!is.null(input$clusterId)){
                  if (input$clusterId!=0){
                    clusterNumbers[clusteringData$SOM$unit.classif==input$clusterId] <- 17
@@ -246,7 +247,7 @@ server <- function(input, output, session) {
                output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
                
                
-               clusterNumbers <- rep(16,max(unlist(clusteringData$Clique)))
+               clusterNumbers <- rep(16,nrow(metabComplete))
                if(!is.null(input$clusterId)){
                  if (input$clusterId!=0){
                    currentCluster <- temps$index[[as.numeric(input$clusterId)]]
@@ -267,7 +268,7 @@ server <- function(input, output, session) {
                
                
                
-               clusterNumbers <- rep(16,max(unlist(idsInClustersDoc)))
+               clusterNumbers <- rep(16,nrow(metabComplete))
                if(!is.null(input$clusterId)){#&input$pcaSwitch[[1]]){
                  if (input$clusterId!=0){
                    currentCluster <- idsInClustersDoc[[as.numeric(input$clusterId)]]
@@ -291,7 +292,7 @@ server <- function(input, output, session) {
                # default is using Clique
                output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
                
-               clusterNumbers <- rep(16,max(unlist(clusteringData$Clique)))
+               clusterNumbers <- rep(16,nrow(metabComplete))
                if(!is.null(input$clusterId)){
                  if (input$clusterId!=0){
                    currentCluster <- clusteringData$Clique[as.numeric(input$clusterId)][[1]]
