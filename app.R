@@ -165,7 +165,8 @@ server <- function(input, output, session) {
                },
                {
                  # default is using Clique
-                 clusteringData$Clique <- CLIQUE(metabComplete) 
+                 clusteringData$Clique <- CLIQUE(metabComplete, xi = 10,tau = 0.05) 
+                 clusteringData$Clique <- clusteringData$Clique[order(unlist(lapply(lapply(clusteringData$Clique, "[[", "subspace"),"sum")),decreasing = TRUE)]
                  
                  cliqueMDSValues <- plotFromClusters(lapply(clusteringData$Clique, `[[`, "objects"), returnMDS = TRUE)
                  clusteringData$CliqueMDS <- data.frame(cbind(seq_len(nrow(cliqueMDSValues)),cliqueMDSValues))
