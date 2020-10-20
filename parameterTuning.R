@@ -136,7 +136,8 @@ for (method in methods){
              w <- 15
              
              run <- tryCatch({
-               docClust <- runDoc(smallMetab, alpha, beta, w)
+               test <- testDataFrame()
+               docClust <- runDoc(test, alpha, beta, w)
                idsInClustersDoc <- getIdsDoc(docClust)
                dims <- getDimsDoc(docClust)
                

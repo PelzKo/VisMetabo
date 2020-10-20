@@ -49,3 +49,18 @@ getData <- function(small=TRUE){
   res <- list(metabComplete,pheno)
   res
 }
+
+testDataFrame <- function(){
+  result <- data.frame(one=rep(NA,10),two=rep(NA,10),three=rep(NA,10),four=rep(NA,10),five=rep(NA,10))
+  result[1,] <- list(1,1,1,1,1)
+  result[2,] <- list(0,0,0,0,0)
+  result[3,] <- list(0,0,0,0,0)
+  result[4,] <- list(1,1,1,1,1)
+  result[5,] <- list(1,1,1,1,1)
+  result[6,] <- list(1,1,1,1,1)
+  result[7,] <- list(0,0,0,0,0)
+  result[8,] <- list(0,0,0,0,0)
+  result[9,] <- list(1,1,1,1,1)
+  result[10,] <- list(1,1,1,1,1)
+  result
+}

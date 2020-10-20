@@ -3,14 +3,14 @@ library(rJava)
 runDoc <- function(data, alpha=0.2, beta=0.8, w=0.05){
   initDoc()
   clusterApplier <- .jnew("ClusterApplier")
-  arrayDouble <- .jcall(clusterApplier, "[[D", "matrix_from_array",as.vector(as.matrix(data)),ncol(data),evalArray=F)
-  result <- .jcall(clusterApplier, "[Lde/lmu/ifi/dbs/elki/data/Cluster;", "doc",arrayDouble,alpha,beta,w,evalArray = F)
+  #arrayDouble <- .jcall(clusterApplier, "[[D", "matrix_from_array",as.vector(as.matrix(data)),ncol(data),evalArray=F)
+  result <- .jcall(clusterApplier, "[Lde/lmu/ifi/dbs/elki/data/Cluster;", "doc",.jarray(as.matrix(data), dispatch = TRUE),alpha,beta,w,evalArray = F)
   result
 }
 
 getIdsDoc <- function(cluster){
   clusterApplier <- .jnew("ClusterApplier")
-  ids <- .jcall(clusterApplier, "[[D", "getIds",cluster, simplify = T)
+  ids <- .jcall(clusterApplier, "[[D", "getIds",cluster, simplify = TRUE)
   if (class(ids)[[1]]!='list'){
     ids <- split(ids, rep(1:nrow(ids), each = ncol(ids)))
   }
