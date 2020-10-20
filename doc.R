@@ -1,8 +1,10 @@
-runDoc <- function(data){
+library(rJava)
+
+runDoc <- function(data, alpha=0.2, beta=0.8, w=0.05){
   initDoc()
   clusterApplier <- .jnew("ClusterApplier")
   arrayDouble <- .jcall(clusterApplier, "[[D", "matrix_from_array",as.vector(as.matrix(data)),ncol(data),evalArray=F)
-  result <- .jcall(clusterApplier, "[Lde/lmu/ifi/dbs/elki/data/Cluster;", "doc",arrayDouble,0.2,0.8,0.05,evalArray = F)
+  result <- .jcall(clusterApplier, "[Lde/lmu/ifi/dbs/elki/data/Cluster;", "doc",arrayDouble,alpha,beta,w,evalArray = F)
   result
 }
 
