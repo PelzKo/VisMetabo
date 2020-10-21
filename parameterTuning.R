@@ -3,6 +3,8 @@ library(kohonen)
 source("C:\\Users\\Konstantin\\Desktop\\Uni\\6Semester\\BachelorArbeit\\code\\testdata.R")
 source("C:\\Users\\Konstantin\\Desktop\\Uni\\6Semester\\BachelorArbeit\\code\\doc.R")
 
+#setwd("C:\\Users\\Konstantin\\Desktop\\Uni\\6Semester\\BachelorArbeit\\code")
+
 N <- 1000  # total number of rows to preallocate--possibly an overestimate
 
 result <- data.frame(name=rep(NA, N), dimNames=rep("", N),  # as many cols as you need

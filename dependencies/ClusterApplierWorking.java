@@ -19,9 +19,9 @@ import java.util.List;
 public class ClusterApplier {
     public static void main(String[] args) {
         //Array for Testing purposes
-        double[][] arr = {{1,1,1,1,1},{0,0,0,0,0},{0,0,0,0,0},{1,1,1,1,1},{1,1,1,1,1},{1,1,1,1,1},{0,0,0,0,0},{0,0,0,0,0},{1,1,1,1,1},{1,1,1,1,1}};
-        Cluster[] res = doc(arr,0.2D,0.8D,0.05D);
-        System.out.println(res.length);
+        double[][] arr = {{1,1,1,1},{1,1,1,3},{9,9,9,5},{1,1,1,7},{1,1,1,9},{9,9,9,11}};
+        //Cluster[] res = doc(arr,0.2D,0.8D,0.05D);
+        //System.out.println(res.length);
 
     }
 
@@ -58,7 +58,7 @@ public class ClusterApplier {
 
         assert clust != null;
         List<Cluster<SubspaceModel>> result = clust.getAllClusters();
-        Cluster[] out = (Cluster[])result.toArray(new Cluster[0]);
+        Cluster[] out = result.toArray(new Cluster[0]);
         return out;
     }
 
@@ -75,33 +75,6 @@ public class ClusterApplier {
         return output;
     }
 
-    public static double[] getIdsOneDim (Cluster<SubspaceModel>[] clusters){
-        ArrayList<Double> out = new ArrayList<>();
-        for (int i = 0; i<clusters.length;i++){
-            //double[] ids = new double[clusters[i].getIDs().size()];
-            String[] numSplit = clusters[i].getIDs().toString().replace(" ","").replace("[","").replace("]","").split(",");
-            for(int j=0;j<numSplit.length;j++) {
-                out.add(Double.parseDouble(numSplit[j]));
-            }
-            out.add((double) 0);
-        }
-        out.add((double) 99);
-        out.add((double) 100);
-        out.add((double) 101);
-        return convertDoubles(out);
-    }
-
-    public static double[] convertDoubles(List<Double> doubles)
-    {
-        double[] ret = new double[doubles.size()];
-        for (int i=0; i < ret.length; i++)
-        {
-            ret[i] = doubles.get(i);
-        }
-        return ret;
-    }
-
-
     public static double[][] getDims (Cluster<SubspaceModel>[] clusters){
         double[][] output= new double[clusters.length][0];
         for (int i = 0; i<clusters.length;i++){
@@ -116,6 +89,14 @@ public class ClusterApplier {
         for (int i = 0; i<clusters.length;i++){
             double[] averageValuesInCluster = clusters[i].getModel().getPrototype();
             output[i] = averageValuesInCluster;
+        }
+        return output;
+    }
+	
+	public static String[] getPrototypeTypes (Cluster<SubspaceModel>[] clusters){
+        String[] output= new String[clusters.length];
+        for (int i = 0; i<clusters.length;i++){
+            output[i] = clusters[i].getModel().getPrototypeType();
         }
         return output;
     }

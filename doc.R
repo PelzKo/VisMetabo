@@ -10,12 +10,13 @@ runDoc <- function(data, alpha=0.2, beta=0.8, w=0.05){
 
 getIdsDoc <- function(cluster){
   clusterApplier <- .jnew("ClusterApplier")
-  ids <- .jcall(clusterApplier, "[[D", "getIds",cluster, simplify = TRUE)
-  if (class(ids)[[1]]!='list'){
-    ids <- split(ids, rep(1:nrow(ids), each = ncol(ids)))
-  }
+  #ids <- .jcall(clusterApplier, "[[D", "getIds",cluster, simplify = TRUE)
+  ids <- .jcall(clusterApplier, "[D", "getIdsOneDim",cluster, simplify = TRUE)
+  #if (class(ids)[[1]]!='list'){
+  #  ids <- split(ids, rep(1:nrow(ids), each = ncol(ids)))
+  #}
   .jcheck()
-  lapply(ids,function(x){x-min(unlist(ids))+1})
+  lapply(ids,function(x){x-min(unlist(ids))})
   
 }
 
