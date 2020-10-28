@@ -58,9 +58,9 @@ testDataFrame <- function(){
   result[4,] <- list(1,1,1,1,1)
   result[5,] <- list(1,1,1,1,1)
   result[6,] <- list(1,1,1,1,1)
-  result[7,] <- list(0,0,0,0,0)
+  result[7,] <- list(1,1,1,1,1)
   result[8,] <- list(0,0,0,0,0)
   result[9,] <- list(1,1,1,1,1)
-  result[10,] <- list(1,1,1,1,1)
+  result[10,] <- list(0,0,0,0,0)
   result
 }
