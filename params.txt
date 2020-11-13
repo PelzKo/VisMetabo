@@ -1,0 +1,253 @@
+clique small 6 0.04
+clique small 8 0.04
+clique small 11 0.04
+clique small 14 0.04
+clique small 6 0.08
+clique small 8 0.08
+clique small 11 0.08
+clique small 14 0.08
+clique small 6 0.10
+clique small 8 0.10
+clique small 11 0.10
+clique small 14 0.10
+clique small 6 0.30
+clique small 8 0.30
+clique small 11 0.30
+clique small 14 0.30
+
+clique big 6 0.04
+clique big 8 0.04
+clique big 11 0.04
+clique big 14 0.04
+clique big 6 0.08
+clique big 8 0.08
+clique big 11 0.08
+clique big 14 0.08
+clique big 6 0.10
+clique big 8 0.10
+clique big 11 0.10
+clique big 14 0.10
+clique big 6 0.30
+clique big 8 0.30
+clique big 11 0.30
+clique big 14 0.30
+
+som small 49 50 0.05,0.01 1Layer
+som small 100 50 0.05,0.01 1Layer
+som small 25 100 0.05,0.01 1Layer
+som small 49 100 0.05,0.01 1Layer
+som small 100 100 0.05,0.01 1Layer
+som small 25 200 0.05,0.01 1Layer
+som small 49 200 0.05,0.01 1Layer
+som small 100 200 0.05,0.01 1Layer
+som small 25 50 0.08,0.01 1Layer
+som small 49 50 0.08,0.01 1Layer
+som small 100 50 0.08,0.01 1Layer
+som small 25 100 0.08,0.01 1Layer
+som small 49 100 0.08,0.01 1Layer
+som small 100 100 0.08,0.01 1Layer
+som small 25 200 0.08,0.01 1Layer
+som small 49 200 0.08,0.01 1Layer
+som small 100 200 0.08,0.01 1Layer
+som small 25 50 0.05,0.001 1Layer
+som small 49 50 0.05,0.001 1Layer
+som small 100 50 0.05,0.001 1Layer
+som small 25 100 0.05,0.001 1Layer
+som small 49 100 0.05,0.001 1Layer
+som small 100 100 0.05,0.001 1Layer
+som small 25 200 0.05,0.001 1Layer
+som small 49 200 0.05,0.001 1Layer
+som small 100 200 0.05,0.001 1Layer
+
+som big 49 50 0.05,0.01 1Layer
+som big 100 50 0.05,0.01 1Layer
+som big 25 100 0.05,0.01 1Layer
+som big 49 100 0.05,0.01 1Layer
+som big 100 100 0.05,0.01 1Layer
+som big 25 200 0.05,0.01 1Layer
+som big 49 200 0.05,0.01 1Layer
+som big 100 200 0.05,0.01 1Layer
+som big 25 50 0.08,0.01 1Layer
+som big 49 50 0.08,0.01 1Layer
+som big 100 50 0.08,0.01 1Layer
+som big 25 100 0.08,0.01 1Layer
+som big 49 100 0.08,0.01 1Layer
+som big 100 100 0.08,0.01 1Layer
+som big 25 200 0.08,0.01 1Layer
+som big 49 200 0.08,0.01 1Layer
+som big 100 200 0.08,0.01 1Layer
+som big 25 50 0.05,0.001 1Layer
+som big 49 50 0.05,0.001 1Layer
+som big 100 50 0.05,0.001 1Layer
+som big 25 100 0.05,0.001 1Layer
+som big 49 100 0.05,0.001 1Layer
+som big 100 100 0.05,0.001 1Layer
+som big 25 200 0.05,0.001 1Layer
+som big 49 200 0.05,0.001 1Layer
+som big 100 200 0.05,0.001 1Layer
+
+som small 49 50 0.05,0.01 2Layer
+som small 100 50 0.05,0.01 2Layer
+som small 25 100 0.05,0.01 2Layer
+som small 49 100 0.05,0.01 2Layer
+som small 100 100 0.05,0.01 2Layer
+som small 25 200 0.05,0.01 2Layer
+som small 49 200 0.05,0.01 2Layer
+som small 100 200 0.05,0.01 2Layer
+som small 25 50 0.08,0.01 2Layer
+som small 49 50 0.08,0.01 2Layer
+som small 100 50 0.08,0.01 2Layer
+som small 25 100 0.08,0.01 2Layer
+som small 49 100 0.08,0.01 2Layer
+som small 100 100 0.08,0.01 2Layer
+som small 25 200 0.08,0.01 2Layer
+som small 49 200 0.08,0.01 2Layer
+som small 100 200 0.08,0.01 2Layer
+som small 25 50 0.05,0.001 2Layer
+som small 49 50 0.05,0.001 2Layer
+som small 100 50 0.05,0.001 2Layer
+som small 25 100 0.05,0.001 2Layer
+som small 49 100 0.05,0.001 2Layer
+som small 100 100 0.05,0.001 2Layer
+som small 25 200 0.05,0.001 2Layer
+som small 49 200 0.05,0.001 2Layer
+som small 100 200 0.05,0.001 2Layer
+
+som big 49 50 0.05,0.01 2Layer
+som big 100 50 0.05,0.01 2Layer
+som big 25 100 0.05,0.01 2Layer
+som big 49 100 0.05,0.01 2Layer
+som big 100 100 0.05,0.01 2Layer
+som big 25 200 0.05,0.01 2Layer
+som big 49 200 0.05,0.01 2Layer
+som big 100 200 0.05,0.01 2Layer
+som big 25 50 0.08,0.01 2Layer
+som big 49 50 0.08,0.01 2Layer
+som big 100 50 0.08,0.01 2Layer
+som big 25 100 0.08,0.01 2Layer
+som big 49 100 0.08,0.01 2Layer
+som big 100 100 0.08,0.01 2Layer
+som big 25 200 0.08,0.01 2Layer
+som big 49 200 0.08,0.01 2Layer
+som big 100 200 0.08,0.01 2Layer
+som big 25 50 0.05,0.001 2Layer
+som big 49 50 0.05,0.001 2Layer
+som big 100 50 0.05,0.001 2Layer
+som big 25 100 0.05,0.001 2Layer
+som big 49 100 0.05,0.001 2Layer
+som big 100 100 0.05,0.001 2Layer
+som big 25 200 0.05,0.001 2Layer
+som big 49 200 0.05,0.001 2Layer
+som big 100 200 0.05,0.001 2Layer
+
+cosa small 0.1 2 30
+cosa small 0.2 2 30
+cosa small 0.4 2 30
+cosa small 0.1 4 30
+cosa small 0.2 4 30
+cosa small 0.4 4 30
+cosa small 0.1 7 30
+cosa small 0.2 7 30
+cosa small 0.4 7 30
+cosa small 0.1 2 80
+cosa small 0.2 2 80
+cosa small 0.4 2 80
+cosa small 0.1 4 80
+cosa small 0.2 4 80
+cosa small 0.4 4 80
+cosa small 0.1 7 80
+cosa small 0.2 7 80
+cosa small 0.4 7 80
+cosa small 0.1 2 130
+cosa small 0.2 2 130
+cosa small 0.4 2 130
+cosa small 0.1 4 130
+cosa small 0.2 4 130
+cosa small 0.4 4 130
+cosa small 0.1 7 130
+cosa small 0.2 7 130
+cosa small 0.4 7 130
+
+cosa big 0.1 2 30
+cosa big 0.2 2 30
+cosa big 0.4 2 30
+cosa big 0.1 4 30
+cosa big 0.2 4 30
+cosa big 0.4 4 30
+cosa big 0.1 7 30
+cosa big 0.2 7 30
+cosa big 0.4 7 30
+cosa big 0.1 2 80
+cosa big 0.2 2 80
+cosa big 0.4 2 80
+cosa big 0.1 4 80
+cosa big 0.2 4 80
+cosa big 0.4 4 80
+cosa big 0.1 7 80
+cosa big 0.2 7 80
+cosa big 0.4 7 80
+cosa big 0.1 2 130
+cosa big 0.2 2 130
+cosa big 0.4 2 130
+cosa big 0.1 4 130
+cosa big 0.2 4 130
+cosa big 0.4 4 130
+cosa big 0.1 7 130
+cosa big 0.2 7 130
+cosa big 0.4 7 130
+
+doc small 0.1 0.25 0.4
+doc small 0.2 0.25 0.4
+doc small 0.4 0.25 0.4
+doc small 0.1 0.50 0.4
+doc small 0.2 0.50 0.4
+doc small 0.4 0.50 0.4
+doc small 0.1 0.75 0.4
+doc small 0.2 0.75 0.4
+doc small 0.4 0.75 0.4
+doc small 0.1 0.25 0.8
+doc small 0.2 0.25 0.8
+doc small 0.4 0.25 0.8
+doc small 0.1 0.50 0.8
+doc small 0.2 0.50 0.8
+doc small 0.4 0.50 0.8
+doc small 0.1 0.75 0.8
+doc small 0.2 0.75 0.8
+doc small 0.4 0.75 0.8
+doc small 0.1 0.25 1.3
+doc small 0.2 0.25 1.3
+doc small 0.4 0.25 1.3
+doc small 0.1 0.50 1.3
+doc small 0.2 0.50 1.3
+doc small 0.4 0.50 1.3
+doc small 0.1 0.75 1.3
+doc small 0.2 0.75 1.3
+doc small 0.4 0.75 1.3
+
+doc big 0.1 0.25 0.4
+doc big 0.2 0.25 0.4
+doc big 0.4 0.25 0.4
+doc big 0.1 0.50 0.4
+doc big 0.2 0.50 0.4
+doc big 0.4 0.50 0.4
+doc big 0.1 0.75 0.4
+doc big 0.2 0.75 0.4
+doc big 0.4 0.75 0.4
+doc big 0.1 0.25 0.8
+doc big 0.2 0.25 0.8
+doc big 0.4 0.25 0.8
+doc big 0.1 0.50 0.8
+doc big 0.2 0.50 0.8
+doc big 0.4 0.50 0.8
+doc big 0.1 0.75 0.8
+doc big 0.2 0.75 0.8
+doc big 0.4 0.75 0.8
+doc big 0.1 0.25 1.3
+doc big 0.2 0.25 1.3
+doc big 0.4 0.25 1.3
+doc big 0.1 0.50 1.3
+doc big 0.2 0.50 1.3
+doc big 0.4 0.50 1.3
+doc big 0.1 0.75 1.3
+doc big 0.2 0.75 1.3
+doc big 0.4 0.75 1.3

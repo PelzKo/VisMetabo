@@ -7,6 +7,13 @@ source("doc.R")
 
 #setwd("C:\\Users\\Konstantin\\Desktop\\Uni\\6Semester\\BachelorArbeit\\paramTuning")
 
+# load libraries and required data
+## CRAN
+list.of.packages <- c("subspace","kohonen","RANN","rJava","openxlsx") # packages you wish to load
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])] # check which of those packages are not yet installed
+if(length(new.packages)) install.packages(new.packages, dependencies = T, repos="https://cloud.r-project.org/") # install 
+
+
 calcW <- function(data,c=1){
   neighbors <- nn2(data,k=2)
   pairs <- neighbors$nn.idx[,2]
