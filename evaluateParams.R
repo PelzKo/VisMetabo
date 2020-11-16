@@ -1,4 +1,4 @@
-library(gt)
+#library(gt)
 setwd("C:\\Users\\Konstantin\\Desktop\\Uni\\6Semester\\BachelorArbeit\\paramTuning")
 
 #data <- readFiles("resultsServer\\results")
@@ -17,7 +17,7 @@ doc <- doc[order(as.numeric(sapply(strsplit(doc$meanEnrichment,"_"),"[[",1)),dec
 
 
 clique <- data[grepl("clique",data$name,fixed = TRUE),]
-clique <- clique[order(as.numeric(sapply(strsplit(clique$meanEnrichment,"_"),"[[",1)),decreasing = TRUE),]
+clique <- clique[order(as.numeric(sapply(strsplit(clique$meanPheno,"_"),"[[",1)),decreasing = TRUE),]
 
 #cliqueDataset <- getAvgId(clique,2)
 #cliqueXi <- getAvgId(clique,3)
