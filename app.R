@@ -142,11 +142,10 @@ server <- function(input, output, session) {
       if (firstRunForClusteringMethod){
         switch(input$clusteringType, 
                SOM={
-                 clusteringData$SOM <- som(data.matrix(metabComplete))
+                 clusteringData$SOM <- som(data.matrix(metabComplete), grid = somgrid(xdim = 5,ydim = 5, topo = "hexagonal"),rlen = 100, alpha = c(0.08,0.01))
                },
                COSA={
-                 clusteringData$COSA <- cosa2(metabComplete, niter = 4, noit = 100)
-                 #clusteringData$COSA <- cosa2(metabComplete, niter = 7, noit = 15)
+                 clusteringData$COSA <- cosa2(metabComplete, lambda = 0.4, niter = 2, noit = 30)
                  clusteringData$COSA$smacof <- smacof(clusteringData$COSA$D, niter = 30, interc = 1, VERBOSE = FALSE, PLOT = FALSE)
                  #clusteringData$COSA <- cosa2(metabComplete, niter = 1, noit = 1)
                  #clusteringData$COSA$smacof <- smacof(clusteringData$COSA$D, niter = 1, interc = 1, VERBOSE = FALSE, PLOT = FALSE)
@@ -158,7 +157,7 @@ server <- function(input, output, session) {
                  
                },
                DOC={
-                 clusteringData$DOC <- runDoc(metabComplete)
+                 clusteringData$DOC <- runDoc(metabComplete, 0.1, 0.75, calcW(metabComplete, 1.3))
                  
                  docMDSValues <- plotFromClusters(getIdsDoc(clusteringData$DOC), returnMDS = TRUE)
                  clusteringData$DocMDS <- data.frame(cbind(seq_len(nrow(docMDSValues)),docMDSValues))
@@ -166,7 +165,15 @@ server <- function(input, output, session) {
                },
                {
                  # default is using Clique
-                 clusteringData$Clique <- CLIQUE(metabComplete, xi = 10,tau = 0.05) 
+                 inds <- nrow(metabComplete)
+                 xi <- 8
+                 if (inds>800){
+                   xi <- xi + floor((inds-800)/200)
+                   if (xi>14){
+                     xi <- 14
+                   }
+                 }
+                 clusteringData$Clique <- CLIQUE(metabComplete, xi = xi,tau = 0.1) 
                  clusteringData$Clique <- clusteringData$Clique[order(unlist(lapply(lapply(clusteringData$Clique, "[[", "subspace"),"sum")),decreasing = TRUE)]
                  
                  cliqueMDSValues <- plotFromClusters(lapply(clusteringData$Clique, `[[`, "objects"), returnMDS = TRUE)
@@ -617,17 +624,35 @@ server <- function(input, output, session) {
           })
         })
       if (input$clusteringType=="Clique"){
-        len <- length(clusteringData$Clique)
+        current <- lapply(clusteringData$Clique, "[[", "objects")
       } else if (input$clusteringType=="DOC"){
-        len <- length(getIdsDoc(clusteringData$DOC))
-      }else {
-        len <- length(temps$index)
+        current <- getIdsDoc(clusteringData$DOC)
+      } else if (input$clusteringType=="SOM"){
+        ids <- 1:nrow(finalValues$metab)
+        clusters <- list()
+        clusterCounts <- sort(table(clusteringData$SOM$unit.classif),decreasing = TRUE)
+        
+        minicount<-1
+        for (i in names(clusterCounts)){
+          clusters[[minicount]] <- ids[clusteringData$SOM$unit.classif==as.numeric(i)]
+          minicount<-minicount+1
+        }
+        current <- clusters
+      } else {
+        current <- temps$index
       }
+      len <- length(current)
       
       columns <- seq(0,len)
       if (input$clusteringType=="SOM"){
         columns <- sort(c(0,unique(clusteringData$SOM$unit.classif)))
       } 
+      
+      if (length(unique(finalValues$pheno[[as.numeric(input$selectedPhenotype)]]))==2){
+        chiValues <- sapply(current, function(x) getChiForCluster(x,finalValues$pheno[[as.numeric(input$selectedPhenotype)]]))
+        columns <- columns[order(chiValues,decreasing = TRUE)]
+      }
+      
       updateSelectInput(session, "clusterId", choices = columns)
     } else {
       output$pcaAll <- renderUI({
@@ -781,6 +806,41 @@ equalsClick <- function(one,two){
   return(one$x==two$x&one$y==two$y)
 }
 
+#Calculates the w parameter for doc
+calcW <- function(data,c=1){
+  neighbors <- nn2(data,k=2)
+  pairs <- neighbors$nn.idx[,2]
+  counter <- 1
+  wLocals <- lapply(pairs, function(x){
+    one <- data[counter,]
+    counter <- counter + 1
+    two <- data[x,]
+    wLocal <- sum(abs(one-two))/length(one)
+    wLocal
+  })
+  w <- (sum(unlist(wLocals))/length(wLocals))*c
+  w
+}
+
+#Calculate chi-squared value for cluster
+getChiForCluster <- function(cluster,pheno){
+  cluster <- unlist(cluster)
+  pheno <- unlist(pheno)
+  pheno <- pheno+(-1*min(pheno))
+  phenoClust <- length(cluster[pheno[cluster]==1])
+  phenoNonClust <- length(pheno[pheno==1])-phenoClust
+  nonPhenoClust <- length(cluster)-phenoClust
+  nonPhenoNonClust <- length(pheno[pheno==0])-nonPhenoClust
+  if (phenoClust+phenoNonClust+nonPhenoClust+nonPhenoNonClust!=length(pheno)){
+    print("ERROR, table is not correct")
+    return(NULL)
+  }
+  result <- data.frame(matrix(c(phenoClust,phenoNonClust,nonPhenoClust,nonPhenoNonClust),nrow = 2,ncol = 2))
+  names(result) <- c("pheno","nonPheno")
+  row.names(result) <- c("inCluster","outCluster")
+  chi <- chisq.test(result)
+  return(chi$statistic)
+}
 
 
 
