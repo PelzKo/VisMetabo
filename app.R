@@ -126,7 +126,7 @@ server <- function(input, output, session) {
   # PCAData
   pcaValues <- reactiveValues()
   #Temp Values to distinguish which click/brush changed
-  temps <- reactiveValues(clusteringClick = NULL,clusteringBrush = NULL, pcaBrush = NULL, index = list(),
+  temps <- reactiveValues(clusteringClick = NULL,clusteringBrush = NULL, pcaBrush = NULL, idsFromClusterOld = NULL, index = list(),
                           oldk = NULL, oldx = NULL, hc = NULL, grps = c(0), id = 1, clickHist = NULL, rects = data.frame(x1=NULL,y1=NULL,x2=NULL,y2=NULL,border=NULL))
   
   
@@ -537,9 +537,11 @@ server <- function(input, output, session) {
                if (length(clusteringData$SOM)==0)
                  return(" ")
                xValues <- clusteringData$SOM$grid$pts[,1]
+               distX <- abs(xValues-clusteringClick$x)
                yValues <- clusteringData$SOM$grid$pts[,2]
+               distY <- abs(yValues-clusteringClick$y)
                allBubbleIds <- 1:nrow(clusteringData$SOM$grid$pts)
-               currentBubbleId <- allBubbleIds[xValues==round(as.numeric(clusteringClick$x))&yValues==round(as.numeric(clusteringClick$y))]
+               currentBubbleId <- allBubbleIds[distX==min(distX)&distY==min(distY)]
                if (length(currentBubbleId)==0)
                  return(" ")
                
@@ -564,7 +566,7 @@ server <- function(input, output, session) {
                # default is using Clique
              }
       )
-    } else if (!is.null(idsFromCluster)){
+    } else if (!is.null(idsFromCluster)&!identical(idsFromCluster,temps$idsFromClusterOld)){
       finalValues$currentIds <- finalValues$idFromNum[as.character(idsFromCluster)]
       phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
       phenotypeAverage <- mean(phenotypes[idsFromCluster])
@@ -580,6 +582,7 @@ server <- function(input, output, session) {
     temps$clusteringClick <- clusteringClick
     temps$clusteringBrush <- clusteringBrush
     temps$pcaBrush <- pcaBrush
+    temps$idsFromClusterOld <- idsFromCluster
     
     return(HTML(finalValues$tempInfo))
     
