@@ -418,7 +418,7 @@ server <- function(input, output, session) {
       }
       
       if (input$externalPheno[[1]]&&!is.null(input$inputPheno)){
-        dataTemp <- merge(inputData, readPhenoFile(input$inputPheno$datapath), by = names(inputData)[[tempId]])
+        dataTemp <- merge(inputData, readPhenoFile(input$inputPheno$datapath), by = names(inputData)[[tempId]], all.x = TRUE)
         if (nrow(dataTemp)==0){
           showNotification("Could not match any metab ids with phenotype ids. Please check you have the correct 
                            ID column, they are named the same and the values are written in the same format.",type = "warning")
