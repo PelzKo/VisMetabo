@@ -6,6 +6,7 @@ library(ggfortify)
 library(rCOSA)
 library(kohonen)
 library(rJava)
+library(RANN)
 #library(ggmap)
 library(ggdendro)
 #library(dendextend)
@@ -772,17 +773,19 @@ fourDeci <- specify_decimal(4)
 
 # Transforms a numbervector into colors
 vecToCol <- function(data, colors){
+  dataNoNa <- data[!is.na(data)]
   result <- data
   result[] <- colors[length(colors)]
-  range = max(data)-min(data)
+  range = max(dataNoNa)-min(dataNoNa)
   intervals = range/(length(colors)-1)
   lastValue = -Inf
   counter = 1
-  for (i in seq(min(data), max(data), by=intervals)){
-    result[data>lastValue&data<=i] <- colors[counter]
+  for (i in seq(min(dataNoNa), max(dataNoNa), by=intervals)){
+    result[data>lastValue&data<=i&!is.na(data)] <- colors[counter]
     lastValue <- i
     counter <- counter + 1
   }
+  result[is.na(result)]<-"black"
   result
 }
 #Equa
