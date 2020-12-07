@@ -34,7 +34,7 @@ ui <- fluidPage(
       "- Rows are individuals, Columns are features",
       fileInput(inputId = "inputData",
                 label = "Data:",
-                accept = ".xlsx"),
+                accept = c(".xlsx",".csv",".tsv")),
       checkboxInput(inputId = "externalPheno",
                     label = "Upload phenotypes from another file"),
       uiOutput(outputId = "phenoInputField"),
@@ -459,7 +459,7 @@ server <- function(input, output, session) {
     if (input$externalPheno[[1]]){
       return(fileInput(inputId = "inputPheno",
                        label = "Phenotypes (they need to have the same unique id as the metab data):",
-                       accept = ".xlsx"))
+                       accept = c(".xlsx",".csv",".tsv")))
     } else {
       return(NULL)
     }

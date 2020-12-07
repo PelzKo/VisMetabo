@@ -4,7 +4,14 @@ library("openxlsx")
 
 
 readFile <- function(filePath, fileSheet = 1){
-  df <- read.xlsx(filePath, sheet = fileSheet)
+  ext <- tools::file_ext(filePath)
+  if (ext == "xlsx"){
+    df <- read.xlsx(filePath, sheet = fileSheet)
+  } else if (ext == "tsv"){
+    df <- read.csv(filePath,sep = "\t")
+  } else {
+    df <- read.csv(filePath)
+  }
   df <- df[complete.cases(df),]
   
   id_col <- 0
@@ -68,7 +75,14 @@ readFile <- function(filePath, fileSheet = 1){
 }
 
 readPhenoFile <- function(filePath, fileSheet = 1){
-  df <- read.xlsx(filePath, sheet = fileSheet)
+  ext <- tools::file_ext(filePath)
+  if (ext == "xlsx"){
+    df <- read.xlsx(filePath, sheet = fileSheet)
+  } else if (ext == "tsv"){
+    df <- read.csv(filePath,sep = "\t")
+  } else {
+    df <- read.csv(filePath)
+  }
   df <- df[complete.cases(df),]
  
   return (df)
