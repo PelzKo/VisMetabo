@@ -1,5 +1,8 @@
-redWhiteBlue <- function(n) {
-  colorRampPalette(c("red","white","blue"), space="Lab")(n)
+getColors <- function(n) {
+  if (n>9){
+    return (colorRampPalette(c("red","white","blue"), space="Lab")(n))
+  }
+  return (rainbow(n))
 }
 
 # Plot SOM Heatmap for variable 

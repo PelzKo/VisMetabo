@@ -135,7 +135,6 @@ server <- function(input, output, session) {
     if (length(data())==4){
       firstRunForClusteringMethod <- length(clusteringData[[input$clusteringType]])==0
       firstPCA <- length(pcaValues$visualisation)==0
-      colorPalette <- redWhiteBlue(20)
       
       
       metabComplete <- data.frame(scale(finalValues$metab))
@@ -193,8 +192,9 @@ server <- function(input, output, session) {
       } else {
         if (input$removeOutliers[[1]]){
           n <- 5
-          lowestTooHigh <- min(phenotype[phenotype >= quantile(phenotype,prob=1-n/100)])
-          highestTooLow <- max(phenotype[phenotype <= quantile(phenotype,prob=n/100)])
+          phenotypeNoNa <- phenotype[!is.na(phenotype)]
+          lowestTooHigh <- min(phenotypeNoNa[phenotypeNoNa >= quantile(phenotypeNoNa,prob=1-n/100)])
+          highestTooLow <- max(phenotypeNoNa[phenotypeNoNa <= quantile(phenotypeNoNa,prob=n/100)])
           phenotype[phenotype>lowestTooHigh] <- lowestTooHigh
           phenotype[phenotype<highestTooLow] <- highestTooLow
         }
@@ -208,6 +208,7 @@ server <- function(input, output, session) {
         output$phenoHist <- NULL
         
       } else {
+        colorPalette <- getColors(length(unique(phenotype[!is.na(phenotype)])))
         if (input$reverse[[1]]){
           output$min <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[1],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s",sep = ""), fourDeci(min(phenotype)))))
           output$max <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[length(colorPalette)],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s",sep = ""), fourDeci(max(phenotype)))))
@@ -243,6 +244,11 @@ server <- function(input, output, session) {
                if(!is.null(input$clusterId)){
                  if (input$clusterId!=0){
                    clusterNumbers[clusteringData$SOM$unit.classif==input$clusterId] <- 17
+                   for (i in length(finalValues$pheno)){
+                     currentPheno <- finalValues$pheno[[i]]
+                     getChiForCluster(x,currentPheno)
+                     
+                   }
                    output$metabUsed <- renderUI(HTML(sprintf("Cluster %s selected",input$clusterId)))
                    finalValues$idsFromCluster <- finalValues$numFromId[clusteringData$SOM$unit.classif==input$clusterId]
                  } else {
@@ -481,7 +487,8 @@ server <- function(input, output, session) {
                points <- brushedPoints(clusteringData$COSA$idsAndSmacof, clusteringBrush, xvar = "x", yvar = "y")
                finalValues$currentIds <- finalValues$idFromNum[as.character(points$id)]
                phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
-               phenotypeAverage <- mean(phenotypes[points$id])
+               phenoInPoints <- phenotypes[points$id]
+               phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
                averageSelected <- colMeans(finalValues$metab[points$id,])
                
                ids <- sprintf("The area you selected (phenotype average of %s), contains the following ids: <br/>%s", round(phenotypeAverage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
@@ -494,7 +501,8 @@ server <- function(input, output, session) {
                points <- brushedPoints(clusteringData$DocMDS, clusteringBrush, xvar = "x", yvar = "y")
                finalValues$currentIds <- finalValues$idFromNum[as.character(points$id)]
                phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
-               phenotypeAverage <- mean(phenotypes[points$id])
+               phenoInPoints <- phenotypes[points$id]
+               phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
                averageSelected <- colMeans(finalValues$metab[points$id,])
                
                ids <- sprintf("The area you selected (phenotype average of %s), contains the following ids: <br/>%s", round(phenotypeAverage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
@@ -508,7 +516,8 @@ server <- function(input, output, session) {
                points <- brushedPoints(clusteringData$CliqueMDS, clusteringBrush, xvar = "x", yvar = "y")
                finalValues$currentIds <- finalValues$idFromNum[as.character(points$id)]
                phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
-               phenotypeAverage <- mean(phenotypes[points$id])
+               phenoInPoints <- phenotypes[points$id]
+               phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
                averageSelected <- colMeans(finalValues$metab[points$id,])
                
                ids <- sprintf("The area you selected (phenotype average of %s), contains the following ids: <br/>%s", round(phenotypeAverage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
@@ -523,7 +532,8 @@ server <- function(input, output, session) {
       pointsPCA <- brushedPoints(pcaValues$visWithId, pcaBrush, xvar = "x", yvar = "y")
       finalValues$currentIds <- finalValues$idFromNum[as.character(pointsPCA$id)]
       phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
-      phenotypeAverage <- mean(phenotypes[pointsPCA$id])
+      phenoInPoints <- phenotypes[pointsPCA$id]
+      phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
       averageSelected <- colMeans(finalValues$metab[pointsPCA$id,])
       
       ids <- sprintf("The area you selected (phenotype average of %s), contains the following ids: <br/>%s", round(phenotypeAverage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
@@ -552,7 +562,8 @@ server <- function(input, output, session) {
                finalValues$currentIds <- finalValues$idFromNum[idsInBubble]
                
                phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
-               phenotypeAverage <- mean(phenotypes[idsInBubble])
+               phenoInPoints <- phenotypes[idsInBubble]
+               phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
                ids <- sprintf("This node (%s, phenotype average of %s) contains the following ids: <br/>%s", currentBubbleId, round(phenotypeAverage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
                averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageInBubble, SIMPLIFY=FALSE)
                average <- sprintf("The average values in this node are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
@@ -570,7 +581,8 @@ server <- function(input, output, session) {
     } else if (!is.null(idsFromCluster)&!identical(idsFromCluster,temps$idsFromClusterOld)){
       finalValues$currentIds <- finalValues$idFromNum[as.character(idsFromCluster)]
       phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
-      phenotypeAverage <- mean(phenotypes[idsFromCluster])
+      phenoInPoints <- phenotypes[idsFromCluster]
+      phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
       averageSelected <- colMeans(finalValues$metab[idsFromCluster,])
       #if(!is.null(input$clusterId)){
       
@@ -763,7 +775,7 @@ server <- function(input, output, session) {
 }
 
 #Scales vector to the range 0 to 1
-range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+range01 <- function(x){(x-min(x[!is.na(x)]))/(max(x[!is.na(x)])-min(x[!is.na(x)]))}
 # round to k decimals
 specify_decimal <- function(k) { function(x){trimws(format(round(x, k), nsmall=k))} }
 # round to 4 decimals
@@ -776,16 +788,12 @@ vecToCol <- function(data, colors){
   dataNoNa <- data[!is.na(data)]
   result <- data
   result[] <- colors[length(colors)]
-  range = max(dataNoNa)-min(dataNoNa)
-  intervals = range/(length(colors)-1)
-  lastValue = -Inf
   counter = 1
-  for (i in seq(min(dataNoNa), max(dataNoNa), by=intervals)){
-    result[data>lastValue&data<=i&!is.na(data)] <- colors[counter]
-    lastValue <- i
+  for (i in sort(unique(dataNoNa))){
+    result[result==i] <- colors[counter]
     counter <- counter + 1
   }
-  result[is.na(result)]<-"black"
+  result[is.na(result)]<-"grey"
   result
 }
 #Equa
@@ -829,10 +837,10 @@ calcW <- function(data,c=1){
 }
 
 #Calculate chi-squared value for cluster
-getChiForCluster <- function(cluster,pheno){
+getChiForCluster <- function(cluster,pheno,pvalue=FALSE){
   cluster <- unlist(cluster)
   pheno <- unlist(pheno)
-  pheno <- pheno+(-1*min(pheno))
+  pheno <- pheno+(-1*min(pheno[!is.na(pheno)]))
   phenoClust <- length(cluster[pheno[cluster]==1])
   phenoNonClust <- length(pheno[pheno==1])-phenoClust
   nonPhenoClust <- length(cluster)-phenoClust
@@ -845,6 +853,9 @@ getChiForCluster <- function(cluster,pheno){
   names(result) <- c("pheno","nonPheno")
   row.names(result) <- c("inCluster","outCluster")
   chi <- chisq.test(result)
+  if (pvalue){
+    return(chi$p.value)
+  }
   return(chi$statistic)
 }
 
