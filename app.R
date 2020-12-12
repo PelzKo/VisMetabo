@@ -185,6 +185,7 @@ server <- function(input, output, session) {
       }
       
       phenotype <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
+      phenotypeNoNa <- phenotype[!is.na(phenotype)]
       
       
       if (class(phenotype)=="character"){
@@ -192,7 +193,6 @@ server <- function(input, output, session) {
       } else {
         if (input$removeOutliers[[1]]){
           n <- 5
-          phenotypeNoNa <- phenotype[!is.na(phenotype)]
           lowestTooHigh <- min(phenotypeNoNa[phenotypeNoNa >= quantile(phenotypeNoNa,prob=1-n/100)])
           highestTooLow <- max(phenotypeNoNa[phenotypeNoNa <= quantile(phenotypeNoNa,prob=n/100)])
           phenotype[phenotype>lowestTooHigh] <- lowestTooHigh
@@ -210,15 +210,15 @@ server <- function(input, output, session) {
       } else {
         colorPalette <- getColors(length(unique(phenotype[!is.na(phenotype)])))
         if (input$reverse[[1]]){
-          output$min <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[1],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s",sep = ""), fourDeci(min(phenotype)))))
-          output$max <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[length(colorPalette)],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s",sep = ""), fourDeci(max(phenotype)))))
+          output$min <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[1],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s",sep = ""), fourDeci(min(phenotypeNoNa)))))
+          output$max <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[length(colorPalette)],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s",sep = ""), fourDeci(max(phenotypeNoNa)))))
           coloredPoints <- vecToCol(phenotype,colorPalette)
         } else {
-          output$min <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[length(colorPalette)],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s",sep = ""), fourDeci(min(phenotype)))))
-          output$max <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[1],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s",sep = ""), fourDeci(max(phenotype)))))
+          output$min <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[length(colorPalette)],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s",sep = ""), fourDeci(min(phenotypeNoNa)))))
+          output$max <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[1],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s",sep = ""), fourDeci(max(phenotypeNoNa)))))
           coloredPoints <- vecToCol(phenotype,rev(colorPalette))
         }
-        output$phenoInfo <- renderText(sprintf("Mean of phenotypes after normalization between 0 and 1: %s", fourDeci(mean(range01(phenotype)))))
+        output$phenoInfo <- renderText(sprintf("Mean of phenotypes after normalization between 0 and 1: %s", fourDeci(mean(range01(phenotypeNoNa)))))
         output$phenoHist <- renderPlot(hist(phenotype))
       }
       
@@ -244,12 +244,16 @@ server <- function(input, output, session) {
                if(!is.null(input$clusterId)){
                  if (input$clusterId!=0){
                    clusterNumbers[clusteringData$SOM$unit.classif==input$clusterId] <- 17
-                   for (i in length(finalValues$pheno)){
+                   currentCluster <- getCurrentClusters()[[as.numeric(input$clusterId)]]
+                   enrichedPhenos <- ""
+                   for (i in seq_len(length(finalValues$pheno)-1)){
                      currentPheno <- finalValues$pheno[[i]]
-                     getChiForCluster(x,currentPheno)
-                     
+                     pVal <- calcPValueForCluster(currentCluster,currentPheno)
+                     if (pVal<0.05){
+                       enrichedPhenos <- sprintf("%s%s with a pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],pVal)
+                     }
                    }
-                   output$metabUsed <- renderUI(HTML(sprintf("Cluster %s selected",input$clusterId)))
+                   output$metabUsed <- renderUI(HTML(sprintf("Cluster %s selected<br/>Enriched Phenotypes:<br/>%s",input$clusterId,enrichedPhenos)))
                    finalValues$idsFromCluster <- finalValues$numFromId[clusteringData$SOM$unit.classif==input$clusterId]
                  } else {
                    output$metabUsed <- renderUI(HTML("No cluster selected"))
@@ -266,7 +270,15 @@ server <- function(input, output, session) {
                  if (input$clusterId!=0){
                    currentCluster <- temps$index[[as.numeric(input$clusterId)]]
                    clusterNumbers[currentCluster] <- 17
-                   output$metabUsed <- renderUI(HTML(sprintf("Cluster %s selected",input$clusterId)))
+                   enrichedPhenos <- ""
+                   for (i in seq_len(length(finalValues$pheno)-1)){
+                     currentPheno <- finalValues$pheno[[i]]
+                     pVal <- calcPValueForCluster(currentCluster,currentPheno)
+                     if (pVal<0.05){
+                       enrichedPhenos <- sprintf("%s%s with a pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],pVal)
+                     }
+                   }
+                   output$metabUsed <- renderUI(HTML(sprintf("Cluster %s selected<br/>Enriched Phenotypes:<br/>%s",input$clusterId,enrichedPhenos)))
                    finalValues$idsFromCluster <- currentCluster
                  } else {
                    output$metabUsed <- renderUI(HTML("No cluster selected"))
@@ -286,10 +298,19 @@ server <- function(input, output, session) {
                if(!is.null(input$clusterId)){#&input$pcaSwitch[[1]]){
                  if (input$clusterId!=0){
                    currentCluster <- idsInClustersDoc[[as.numeric(input$clusterId)]]
-                   usedDimensions <- getDimsDoc(clusteringData$DOC)[as.numeric(input$clusterId),]
+                   enrichedPhenos <- ""
+                   for (i in seq_len(length(finalValues$pheno)-1)){
+                     currentPheno <- finalValues$pheno[[i]]
+                     pVal <- calcPValueForCluster(currentCluster,currentPheno)
+                     if (pVal<0.05){
+                       enrichedPhenos <- sprintf("%s%s with a pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],pVal)
+                     }
+                   }
+                   
+                   usedDimensions <- getDimsDoc(clusteringData$DOC)[[as.numeric(input$clusterId)]]
                    avgs <- getAvgsDoc(clusteringData$DOC)[as.numeric(input$clusterId),]
                    metabs <- names(metabComplete)[usedDimensions]
-                   usedMetabs <- sprintf("This cluster was calculed using the following metabolites: <br/>%s", paste(metabs, collapse = '<br/>'))
+                   usedMetabs <- sprintf("This cluster was calculed using the following metabolites: <br/>%s<br/><br/>Enriched Phenotypes:<br/>%s", paste(metabs, collapse = '<br/>'),enrichedPhenos)
                    averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), metabs, avgs, SIMPLIFY=FALSE)
                    metabAvgs <- sprintf("<br/><br/>The metabolites have the following averages: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
                    output$metabUsed <- renderUI(HTML(paste(usedMetabs,metabAvgs)))
@@ -310,8 +331,16 @@ server <- function(input, output, session) {
                if(!is.null(input$clusterId)){
                  if (input$clusterId!=0){
                    currentCluster <- clusteringData$Clique[as.numeric(input$clusterId)][[1]]
+                   enrichedPhenos <- ""
+                   for (i in seq_len(length(finalValues$pheno)-1)){
+                     currentPheno <- finalValues$pheno[[i]]
+                     pVal <- calcPValueForCluster(currentCluster$objects,currentPheno)
+                     if (pVal<0.05){
+                       enrichedPhenos <- sprintf("%s%s with a pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],pVal)
+                     }
+                   }
                    metabs <- names(metabComplete)[currentCluster$subspace]
-                   usedMetabs <- sprintf("This cluster was calculed using the following metabolites: <br/>%s", paste(metabs, collapse = '<br/>'))
+                   usedMetabs <- sprintf("This cluster was calculed using the following metabolites: <br/>%s<br/><br/>Enriched Phenotypes:<br/>%s", paste(metabs, collapse = '<br/>'),enrichedPhenos)
                    output$metabUsed <- renderUI(HTML(usedMetabs))
                    
                    clusterNumbers[currentCluster$objects] <- 17
@@ -413,11 +442,13 @@ server <- function(input, output, session) {
       clusteringData$SOM = list()
       clusteringData$COSA = list()
       clusteringData$DOC = list()
-      inputData <- data()$values[complete.cases(data()$values), ]
       
       tempId <- as.numeric(input$idField)
       tempStart <- as.numeric(input$metabStart)
       tempEnd <- as.numeric(input$metabEnd)
+      
+      
+      inputData <- data()$values[complete.cases(data()$values[c(tempStart:tempEnd)]), ]
       
       if (length(inputData[[tempId]])!=length(unique(inputData[[tempId]]))){
         output$idError <- renderText("Identifier is not unique")
@@ -639,24 +670,7 @@ server <- function(input, output, session) {
             )
           })
         })
-      if (input$clusteringType=="Clique"){
-        current <- lapply(clusteringData$Clique, "[[", "objects")
-      } else if (input$clusteringType=="DOC"){
-        current <- getIdsDoc(clusteringData$DOC)
-      } else if (input$clusteringType=="SOM"){
-        ids <- 1:nrow(finalValues$metab)
-        clusters <- list()
-        clusterCounts <- sort(table(clusteringData$SOM$unit.classif),decreasing = TRUE)
-        
-        minicount<-1
-        for (i in names(clusterCounts)){
-          clusters[[minicount]] <- ids[clusteringData$SOM$unit.classif==as.numeric(i)]
-          minicount<-minicount+1
-        }
-        current <- clusters
-      } else {
-        current <- temps$index
-      }
+      current <- getCurrentClusters()
       len <- length(current)
       
       columns <- seq(0,len)
@@ -664,10 +678,10 @@ server <- function(input, output, session) {
         columns <- sort(c(0,unique(clusteringData$SOM$unit.classif)))
       } 
       
-      if (length(unique(finalValues$pheno[[as.numeric(input$selectedPhenotype)]]))==2){
-        chiValues <- sapply(current, function(x) getChiForCluster(x,finalValues$pheno[[as.numeric(input$selectedPhenotype)]]))
-        columns <- columns[order(chiValues,decreasing = TRUE)]
-      }
+      pValues <- sapply(current, function(x) calcPValueForCluster(x,finalValues$pheno[[as.numeric(input$selectedPhenotype)]]))
+      pValues <- c(max(pValues)+1,pValues)
+      
+      columns <- columns[order(pValues)]
       
       updateSelectInput(session, "clusterId", choices = columns)
     } else {
@@ -677,6 +691,26 @@ server <- function(input, output, session) {
       })
     }
   })
+  
+  getCurrentClusters <- function(){
+    if (input$clusteringType=="Clique"){
+      return(lapply(clusteringData$Clique, "[[", "objects"))
+    } else if (input$clusteringType=="DOC"){
+      return(getIdsDoc(clusteringData$DOC))
+    } else if (input$clusteringType=="SOM"){
+      ids <- 1:nrow(finalValues$metab)
+      clusters <- list()
+      clusterCounts <- sort(table(clusteringData$SOM$unit.classif),decreasing = TRUE)
+      
+      minicount<-1
+      for (i in names(clusterCounts)){
+        clusters[[minicount]] <- ids[clusteringData$SOM$unit.classif==as.numeric(i)]
+        minicount<-minicount+1
+      }
+      return(clusters)
+    }
+    return(temps$index)
+  }
   
   output$hist <- renderPlot({
     if (length(clusteringData$COSA)>0){
@@ -787,13 +821,12 @@ fourDeci <- specify_decimal(4)
 vecToCol <- function(data, colors){
   dataNoNa <- data[!is.na(data)]
   result <- data
-  result[] <- colors[length(colors)]
   counter = 1
   for (i in sort(unique(dataNoNa))){
     result[result==i] <- colors[counter]
     counter <- counter + 1
   }
-  result[is.na(result)]<-"grey"
+  result[is.na(result)]<-"black"
   result
 }
 #Equa
@@ -836,16 +869,35 @@ calcW <- function(data,c=1){
   w
 }
 
+calcPValueForCluster <- function(cluster,phenotype){
+  phenoNoNa <- phenotype[!is.na(phenotype)]
+  uniNoNa <- unique(phenoNoNa)
+  if (length(uniNoNa)==2){
+    return(getChiForCluster(cluster,phenotype,TRUE))
+  } else {
+    clusterPhenos <- phenotype[cluster]
+    clusterPhenos <- clusterPhenos[!is.na(clusterPhenos)]
+    nonClusterPhenos <- phenotype[-cluster]
+    nonClusterPhenos <- nonClusterPhenos[!is.na(nonClusterPhenos)]
+    return(t.test(clusterPhenos,nonClusterPhenos)$p.value)
+  }
+}
+
 #Calculate chi-squared value for cluster
-getChiForCluster <- function(cluster,pheno,pvalue=FALSE){
+getChiForCluster <- function(cluster,phenotype,pvalue=FALSE){
+  phenoNoNa <- phenotype[!is.na(phenotype)]
+  one <- unique(phenoNoNa)[[1]]
+  two <- unique(phenoNoNa)[[2]]
   cluster <- unlist(cluster)
-  pheno <- unlist(pheno)
-  pheno <- pheno+(-1*min(pheno[!is.na(pheno)]))
-  phenoClust <- length(cluster[pheno[cluster]==1])
-  phenoNonClust <- length(pheno[pheno==1])-phenoClust
-  nonPhenoClust <- length(cluster)-phenoClust
-  nonPhenoNonClust <- length(pheno[pheno==0])-nonPhenoClust
-  if (phenoClust+phenoNonClust+nonPhenoClust+nonPhenoNonClust!=length(pheno)){
+  pheno <- unlist(phenotype)
+  phenoClust <- sum(pheno[cluster]==one,na.rm = T)
+  phenoNonClust <- sum(pheno[-cluster]==one,na.rm = T)
+  nonPhenoClust <- sum(pheno[cluster]==two,na.rm = T)
+  nonPhenoNonClust <- sum(pheno[-cluster]==two,na.rm = T)
+  #phenoNonClust <- length(pheno[pheno==one])-phenoClust
+  #nonPhenoClust <- length(cluster)-phenoClust
+  #nonPhenoNonClust <- length(pheno[pheno==two])-nonPhenoClust
+  if (phenoClust+phenoNonClust+nonPhenoClust+nonPhenoNonClust!=length(phenoNoNa)){
     print("ERROR, table is not correct")
     return(NULL)
   }

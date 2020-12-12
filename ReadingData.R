@@ -12,7 +12,7 @@ readFile <- function(filePath, fileSheet = 1){
   } else {
     df <- read.csv(filePath)
   }
-  df <- df[complete.cases(df),]
+  #df <- df[complete.cases(df),]
   
   id_col <- 0
   need_id <- TRUE
