@@ -79,28 +79,23 @@ ui <- fluidPage(
                         label = "Reverse Color Strength"),
           checkboxInput(inputId = "removeOutliers",
                         label = "Remove the highest and lowest 5% (Only of number phenotypes)"),
-          #checkboxInput(inputId = "clusterRemove",
-          #              label = "Remove them before the clustering"),
           textOutput(outputId = "phenoInfo"),
-          plotOutput(outputId = "phenoHist")
+          plotOutput(outputId = "phenoHist"),
           
-          #selectInput(inputId = "coloredPurple",
-          #            label = "Color in Purple:",
-          #            choices = list("None","Cluster 0","Cluster 1"))
           
+          width = 3
         ),
         
         # Main panel for displaying outputs ----
         mainPanel(
           
-          # Output: Clustering & PCA ----
-          #plotOutput(outputId = "clustering",
-          #           click = "clustering_click"),
           bsModal("cosaHist", "Histogram of the rCosa", "go", size = "large",plotOutput("hist", click = "clickHist")),
           uiOutput("clusteringPlot"),
           uiOutput("pcaAll"),
           uiOutput("downloadButton"),
-          htmlOutput("info")
+          htmlOutput("info"),
+          
+          width = 9
           
         )
       )
@@ -111,6 +106,7 @@ ui <- fluidPage(
 
 # Define server logic required ----
 server <- function(input, output, session) {
+  plotsSize <- "1000px"
   # Data uploaded by the user
   data <- reactive({
     if (!is.null(input$inputData)){
@@ -135,6 +131,11 @@ server <- function(input, output, session) {
     if (length(data())==4){
       firstRunForClusteringMethod <- length(clusteringData[[input$clusteringType]])==0
       firstPCA <- length(pcaValues$visualisation)==0
+      
+      colorClusterNotPheno <- FALSE
+      if (!is.null(input$colorClusterNoPheno)){
+        colorClusterNotPheno <- input$colorClusterNoPheno[[1]]
+      }
       
       
       metabComplete <- data.frame(scale(finalValues$metab))
@@ -222,6 +223,8 @@ server <- function(input, output, session) {
         output$phenoHist <- renderPlot(hist(phenotype))
       }
       
+      clusterNumbers <- rep(16,nrow(metabComplete))
+      clusterColors <- rep("blue",nrow(metabComplete))
       switch(input$clusteringType,
              SOM={
                output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", click = "clustering_click"))
@@ -240,10 +243,10 @@ server <- function(input, output, session) {
                #for (num in clusters){
                #  clusterColors <- replace(clusterColors, clusterColors==as.numeric(num), colorClusters[[num]])
                #}
-               clusterNumbers <- rep(16,nrow(metabComplete))
                if(!is.null(input$clusterId)){
                  if (input$clusterId!=0){
                    clusterNumbers[clusteringData$SOM$unit.classif==input$clusterId] <- 17
+                   clusterColors[clusteringData$SOM$unit.classif==input$clusterId] <- "red"
                    currentCluster <- getCurrentClusters()[[as.numeric(input$clusterId)]]
                    enrichedPhenos <- ""
                    for (i in seq_len(length(finalValues$pheno)-1)){
@@ -262,14 +265,13 @@ server <- function(input, output, session) {
                
              },
              COSA={
-               output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
+               output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush", height = plotsSize, width = plotsSize))
                
-               
-               clusterNumbers <- rep(16,nrow(metabComplete))
                if(!is.null(input$clusterId)){
                  if (input$clusterId!=0){
                    currentCluster <- temps$index[[as.numeric(input$clusterId)]]
                    clusterNumbers[currentCluster] <- 17
+                   clusterColors[currentCluster] <- "red"
                    enrichedPhenos <- ""
                    for (i in seq_len(length(finalValues$pheno)-1)){
                      currentPheno <- finalValues$pheno[[i]]
@@ -285,16 +287,18 @@ server <- function(input, output, session) {
                  }
                }
                
+               
+               if(colorClusterNotPheno){
+                 coloredPoints <- clusterColors
+               }
+               
                output$clustering <- renderPlot(plotSmacof(clusteringData$COSA$smacof[["X"]], cols = coloredPoints, pch = clusterNumbers))
              },
              DOC={
-               output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
+               output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush", height = plotsSize, width = plotsSize))
                
                idsInClustersDoc <- getIdsDoc(clusteringData$DOC)
                
-               
-               
-               clusterNumbers <- rep(16,nrow(metabComplete))
                if(!is.null(input$clusterId)){#&input$pcaSwitch[[1]]){
                  if (input$clusterId!=0){
                    currentCluster <- idsInClustersDoc[[as.numeric(input$clusterId)]]
@@ -316,18 +320,22 @@ server <- function(input, output, session) {
                    output$metabUsed <- renderUI(HTML(paste(usedMetabs,metabAvgs)))
                    
                    clusterNumbers[currentCluster] <- 17
+                   clusterColors[currentCluster] <- "red"
                    finalValues$idsFromCluster <- currentCluster
                  } else {
                    output$metabUsed <- renderUI(HTML("No cluster selected"))
                  }  
                }
+               
+               if(colorClusterNotPheno){
+                 coloredPoints <- clusterColors
+               }
                output$clustering <- renderPlot(plotFromClusters(idsInClustersDoc, label = FALSE, colors = coloredPoints, pch = clusterNumbers))
              },
              {
                # default is using Clique
-               output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush"))
+               output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush", height = plotsSize, width = plotsSize))
                
-               clusterNumbers <- rep(16,nrow(metabComplete))
                if(!is.null(input$clusterId)){
                  if (input$clusterId!=0){
                    currentCluster <- clusteringData$Clique[as.numeric(input$clusterId)][[1]]
@@ -344,10 +352,15 @@ server <- function(input, output, session) {
                    output$metabUsed <- renderUI(HTML(usedMetabs))
                    
                    clusterNumbers[currentCluster$objects] <- 17
+                   clusterColors[currentCluster$objects] <- "red"
                    finalValues$idsFromCluster <- currentCluster$objects
                  } else {
                    output$metabUsed <- renderUI(HTML("No cluster selected"))
                  }
+               }
+               
+               if(colorClusterNotPheno){
+                 coloredPoints <- clusterColors
                }
                
                output$clustering <- renderPlot(plotFromClusters(lapply(clusteringData$Clique, `[[`, "objects"), label = FALSE, colors = coloredPoints, pch = clusterNumbers))
@@ -372,9 +385,15 @@ server <- function(input, output, session) {
       
       coloredPointsPCA <- coloredPoints
       
+      if(colorClusterNotPheno){
+        coloredPointsPCA <- clusterColors
+      }
+      
       plotNoLims(pcaValues$visualisation, "PCA - PC1 vs PC2", sprintf("PC1 (%s%%)",pcaValues$percentage[[1]]),sprintf("PC2 (%s%%)",pcaValues$percentage[[2]]), cols = coloredPointsPCA, pch = clusterNumbers)
     }
   })
+  
+  #height = function() {session$clientData$output_pca_width}
   
   # Goto Input Validation Panel
   observeEvent(input$toTypes, {
@@ -391,7 +410,7 @@ server <- function(input, output, session) {
                       selected = "1")
     output$pcaAll <- renderUI({
       plotOutput(outputId = "pca",
-                 brush = "pca_brush")
+                 brush = "pca_brush", height = plotsSize, width = plotsSize)
     })
   })
   
@@ -657,14 +676,16 @@ server <- function(input, output, session) {
       output$pcaAll <- renderUI({
         return({
             fluidRow(
-              column(8,
+              column(9,
                      plotOutput(outputId = "pca",
-                                brush = "pca_brush")
+                                brush = "pca_brush", height = plotsSize, width = plotsSize)
               ),
-              column(4,
+              column(3,
                      selectInput(inputId = "clusterId",
-                                 label = "Select the cluster to be colored:",
+                                 label = "Select the cluster:",
                                  choices = list()),
+                     checkboxInput(inputId = "colorClusterNoPheno",
+                                   label = "Color Cluster instead of phenotype"),
                      htmlOutput("metabUsed")
               )
             )
@@ -678,8 +699,13 @@ server <- function(input, output, session) {
         columns <- sort(c(0,unique(clusteringData$SOM$unit.classif)))
       } 
       
-      pValues <- sapply(current, function(x) calcPValueForCluster(x,finalValues$pheno[[as.numeric(input$selectedPhenotype)]]))
+      pValues <- unlist(sapply(current, function(x) calcPValueForCluster(x,finalValues$pheno[[as.numeric(input$selectedPhenotype)]])))
       pValues <- c(max(pValues)+1,pValues)
+      
+      if (length(columns)!=length(pValues)){
+        print("Something is wrong")
+        print(paste("Columns:",length(columns),"pValues:",length(pValues)))
+      }
       
       columns <- columns[order(pValues)]
       
@@ -687,7 +713,7 @@ server <- function(input, output, session) {
     } else {
       output$pcaAll <- renderUI({
         plotOutput(outputId = "pca",
-                   brush = "pca_brush")
+                   brush = "pca_brush", height = plotsSize, width = plotsSize)
       })
     }
   })
@@ -753,7 +779,7 @@ server <- function(input, output, session) {
         temps$clickHist <- x
         temps$grps <- grps
         temps$index <- unique(retval)
-        temps$index <- temps$index[-which(sapply(temps$index, is.null))]
+        temps$index <- temps$index[!sapply(temps$index, is.null)]
         #invisible(list(grps = grps, index = retval))
       }
       outPlot <- ggdendrogram(clusteringData$COSA$hist$dendro)
