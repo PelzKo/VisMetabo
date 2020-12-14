@@ -7,9 +7,8 @@ library(rCOSA)
 library(kohonen)
 library(rJava)
 library(RANN)
-#library(ggmap)
+library(dummies)
 library(ggdendro)
-#library(dendextend)
 
 source("ReadingData.R")
 source("utility.R")
@@ -70,9 +69,9 @@ ui <- fluidPage(
                       choices = list()),
           selectInput(inputId = "clusteringType",
                       label = "Clustering Algorithm used:",
-                      choices = list("Clique","SOM", "COSA","DOC")),
+                      choices = list("Nothing","Clique","SOM", "COSA","DOC")),
           actionButton("resetClustering", "Reset the Clustering"),
-          checkboxInput("pcaSwitch", "Color the Clusters in the PCA Plot"),
+          checkboxInput("pcaSwitch", "Display the Clusters in the PCA Plot"),
           uiOutput(outputId = "min"),
           uiOutput(outputId = "max"),
           checkboxInput(inputId = "reverse",
@@ -128,7 +127,7 @@ server <- function(input, output, session) {
   
   
   output$pca <- renderPlot({
-    if (length(data())==4){
+    if (length(data())==4&input$clusteringType!="Nothing"){
       firstRunForClusteringMethod <- length(clusteringData[[input$clusteringType]])==0
       firstPCA <- length(pcaValues$visualisation)==0
       
@@ -158,7 +157,7 @@ server <- function(input, output, session) {
                  
                },
                DOC={
-                 clusteringData$DOC <- runDoc(metabComplete, 0.1, 0.75, calcW(metabComplete, 1.3))
+                 clusteringData$DOC <- tryCatch(runDoc(metabComplete, 0.1, 0.75, calcW(metabComplete, 1.3)),error = function(x){return(list())})
                  
                  docMDSValues <- plotFromClusters(getIdsDoc(clusteringData$DOC), returnMDS = TRUE)
                  clusteringData$DocMDS <- data.frame(cbind(seq_len(nrow(docMDSValues)),docMDSValues))
@@ -191,6 +190,9 @@ server <- function(input, output, session) {
       
       if (class(phenotype)=="character"){
         phenotype <- as.numeric(factor(phenotype))
+      } else if (class(phenotype)=="character"){
+        phenotype <- as.numeric(phenotype)
+        phenotypeNoNa <- as.numeric(phenotypeNoNa)
       } else {
         if (input$removeOutliers[[1]]){
           n <- 5
@@ -342,6 +344,7 @@ server <- function(input, output, session) {
                    enrichedPhenos <- ""
                    for (i in seq_len(length(finalValues$pheno)-1)){
                      currentPheno <- finalValues$pheno[[i]]
+                     #print(names(finalValues$pheno)[[i]])
                      pVal <- calcPValueForCluster(currentCluster$objects,currentPheno)
                      if (pVal<0.05){
                        enrichedPhenos <- sprintf("%s%s with a pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],pVal)
@@ -447,8 +450,7 @@ server <- function(input, output, session) {
              DOC={  
                clusteringData$DOC = list()
              },
-             {
-               # default is using Clique
+             Clique={
                clusteringData$Clique = list()
              }
       )
@@ -528,6 +530,10 @@ server <- function(input, output, session) {
     clusteringBrush <- input$clustering_brush
     pcaBrush <- input$pca_brush
     idsFromCluster <- finalValues$idsFromCluster
+    
+    if (input$clusteringType=="Nothing"){
+      return(HTML(finalValues$tempInfo))
+    }
     
     if (!is.null(clusteringBrush)&!equalsBrush(temps$clusteringBrush,clusteringBrush)){
       switch(input$clusteringType, 
@@ -672,6 +678,9 @@ server <- function(input, output, session) {
   )
   
   PCASwitchObserver <- observe({
+    if (input$clusteringType=="Nothing"){
+      return()
+    }
     if(input$pcaSwitch[[1]]){
       output$pcaAll <- renderUI({
         return({
@@ -719,6 +728,9 @@ server <- function(input, output, session) {
   })
   
   getCurrentClusters <- function(){
+    if (input$clusteringType=="Nothing"){
+      return()
+    }
     if (input$clusteringType=="Clique"){
       return(lapply(clusteringData$Clique, "[[", "objects"))
     } else if (input$clusteringType=="DOC"){
@@ -901,11 +913,20 @@ calcPValueForCluster <- function(cluster,phenotype){
   if (length(uniNoNa)==2){
     return(getChiForCluster(cluster,phenotype,TRUE))
   } else {
+    cluster <- as.numeric(cluster)
+    phenotype <- as.numeric(phenotype)
     clusterPhenos <- phenotype[cluster]
     clusterPhenos <- clusterPhenos[!is.na(clusterPhenos)]
     nonClusterPhenos <- phenotype[-cluster]
     nonClusterPhenos <- nonClusterPhenos[!is.na(nonClusterPhenos)]
-    return(t.test(clusterPhenos,nonClusterPhenos)$p.value)
+    if(length(unique(c(clusterPhenos,nonClusterPhenos)))==1){
+      return(1)
+    } else if(length(unique(clusterPhenos))==1 & length(unique(nonClusterPhenos))==1){
+      return(0)
+    } else {
+      return(t.test(clusterPhenos,nonClusterPhenos)$p.value)
+    }
+    
   }
 }
 
@@ -914,8 +935,8 @@ getChiForCluster <- function(cluster,phenotype,pvalue=FALSE){
   phenoNoNa <- phenotype[!is.na(phenotype)]
   one <- unique(phenoNoNa)[[1]]
   two <- unique(phenoNoNa)[[2]]
-  cluster <- unlist(cluster)
-  pheno <- unlist(phenotype)
+  cluster <- as.numeric(unlist(cluster))
+  pheno <- as.numeric(unlist(phenotype))
   phenoClust <- sum(pheno[cluster]==one,na.rm = T)
   phenoNonClust <- sum(pheno[-cluster]==one,na.rm = T)
   nonPhenoClust <- sum(pheno[cluster]==two,na.rm = T)

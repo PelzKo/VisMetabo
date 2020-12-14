@@ -83,7 +83,6 @@ readPhenoFile <- function(filePath, fileSheet = 1){
   } else {
     df <- read.csv(filePath)
   }
-  df <- df[complete.cases(df),]
  
   return (df)
 }
