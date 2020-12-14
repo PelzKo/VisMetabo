@@ -118,7 +118,7 @@ server <- function(input, output, session) {
   # Transformed/normalized data
   finalValues <- reactiveValues(id = 1, metab = list(), pheno = list())
   # Clusters
-  clusteringData <- reactiveValues(Clique = list(), CliqueMDS = list(), SOM = list(), COSA = list(), DOC = list(), DocMDS = list())
+  clusteringData <- reactiveValues(Clique = list(), CliqueMDS = list(), SOM = list(), COSA = list(), DOC = list(), DocMDS = list(), PhenoPValues = list())
   # PCAData
   pcaValues <- reactiveValues()
   #Temp Values to distinguish which click/brush changed
@@ -267,7 +267,14 @@ server <- function(input, output, session) {
                        enrichedPhenos <- sprintf("%s%s with a pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],pVal)
                      }
                    }
-                   output$metabUsed <- renderUI(HTML(sprintf("Cluster %s selected<br/>Enriched Phenotypes:<br/>%s",input$clusterId,enrichedPhenos)))
+                   numberOfClusters <- length(unique(clusteringData$SOM$unit.classif))
+                   enrichedPhenos <- sprintf("%s<br/>Bonferroni cut-off with %s clusters would be %s<br/>",enrichedPhenos,numberOfClusters,0.05/numberOfClusters)
+                   if (!is.na(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]])){
+                     sumNormal <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<0.05,na.rm = TRUE)
+                     sumBonferroni <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<(0.05/numberOfClusters),na.rm = TRUE)
+                     enrichedPhenos <- sprintf("%s%s Clusters are significant (for this phenotype) with the cutoff <0.05<br/>%s Clusters are significant (for this phenotype) with the Bonferroni cutoff<br/>",enrichedPhenos,sumNormal,sumBonferroni)
+                   }
+                   output$metabUsed <- renderUI(HTML(sprintf("Cluster %s selected<br/>Significant Phenotypes:<br/>%s",input$clusterId,enrichedPhenos)))
                    finalValues$idsFromCluster <- finalValues$numFromId[clusteringData$SOM$unit.classif==input$clusterId]
                  } else {
                    output$metabUsed <- renderUI(HTML("No cluster selected"))
@@ -291,7 +298,15 @@ server <- function(input, output, session) {
                        enrichedPhenos <- sprintf("%s%s with a pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],pVal)
                      }
                    }
-                   output$metabUsed <- renderUI(HTML(sprintf("Cluster %s selected<br/>Enriched Phenotypes:<br/>%s",input$clusterId,enrichedPhenos)))
+                   
+                   numberOfClusters <- length(temps$index)
+                   enrichedPhenos <- sprintf("%s<br/>Bonferroni cut-off with %s clusters would be %s<br/>",enrichedPhenos,numberOfClusters,0.05/numberOfClusters)
+                   if (!is.na(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]])){
+                     sumNormal <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<0.05,na.rm = TRUE)
+                     sumBonferroni <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<(0.05/numberOfClusters),na.rm = TRUE)
+                     enrichedPhenos <- sprintf("%s%s Clusters are significant (for this phenotype) with the cutoff <0.05<br/>%s Clusters are significant (for this phenotype) with the Bonferroni cutoff<br/>",enrichedPhenos,sumNormal,sumBonferroni)
+                   }
+                   output$metabUsed <- renderUI(HTML(sprintf("Cluster %s selected<br/>Significant Phenotypes:<br/>%s",input$clusterId,enrichedPhenos)))
                    finalValues$idsFromCluster <- currentCluster
                  } else {
                    output$metabUsed <- renderUI(HTML("No cluster selected"))
@@ -322,10 +337,18 @@ server <- function(input, output, session) {
                      }
                    }
                    
+                   numberOfClusters <- length(idsInClustersDoc)
+                   enrichedPhenos <- sprintf("%s<br/>Bonferroni cut-off with %s clusters would be %s<br/>",enrichedPhenos,numberOfClusters,0.05/numberOfClusters)
+                   if (!is.na(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]])){
+                     sumNormal <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<0.05,na.rm = TRUE)
+                     sumBonferroni <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<(0.05/numberOfClusters),na.rm = TRUE)
+                     enrichedPhenos <- sprintf("%s%s Clusters are significant (for this phenotype) with the cutoff <0.05<br/>%s Clusters are significant (for this phenotype) with the Bonferroni cutoff<br/>",enrichedPhenos,sumNormal,sumBonferroni)
+                   }
+                   
                    usedDimensions <- getDimsDoc(clusteringData$DOC)[[as.numeric(input$clusterId)]]
                    avgs <- getAvgsDoc(clusteringData$DOC)[as.numeric(input$clusterId),]
                    metabs <- names(metabComplete)[usedDimensions]
-                   usedMetabs <- sprintf("This cluster was calculed using the following metabolites: <br/>%s<br/><br/>Enriched Phenotypes:<br/>%s", paste(metabs, collapse = '<br/>'),enrichedPhenos)
+                   usedMetabs <- sprintf("This cluster was calculed using the following metabolites: <br/>%s<br/><br/>Significant Phenotypes:<br/>%s", paste(metabs, collapse = '<br/>'),enrichedPhenos)
                    averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), metabs, avgs, SIMPLIFY=FALSE)
                    metabAvgs <- sprintf("<br/><br/>The metabolites have the following averages: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
                    output$metabUsed <- renderUI(HTML(paste(usedMetabs,metabAvgs)))
@@ -348,7 +371,7 @@ server <- function(input, output, session) {
                output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush", height = plotsSize, width = plotsSize))
                
                if(!is.null(input$clusterId)){
-                 if (input$clusterId!=0){
+                 if (input$clusterId!=0&input$clusterId!=""){
                    currentCluster <- clusteringData$Clique[as.numeric(input$clusterId)][[1]]
                    enrichedPhenos <- ""
                    for (i in seq_len(length(finalValues$pheno)-1)){
@@ -359,8 +382,15 @@ server <- function(input, output, session) {
                        enrichedPhenos <- sprintf("%s%s with a pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],pVal)
                      }
                    }
+                   numberOfClusters <- length(clusteringData$Clique)
+                   enrichedPhenos <- sprintf("%s<br/>Bonferroni cut-off with %s clusters would be %s<br/>",enrichedPhenos,numberOfClusters,0.05/numberOfClusters)
+                   if (!is.na(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]])){
+                     sumNormal <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<0.05,na.rm = TRUE)
+                     sumBonferroni <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<(0.05/numberOfClusters),na.rm = TRUE)
+                     enrichedPhenos <- sprintf("%s%s Clusters are significant (for this phenotype) with the cutoff <0.05<br/>%s Clusters are significant (for this phenotype) with the Bonferroni cutoff<br/>",enrichedPhenos,sumNormal,sumBonferroni)
+                   }
                    metabs <- names(metabComplete)[currentCluster$subspace]
-                   usedMetabs <- sprintf("This cluster was calculed using the following metabolites: <br/>%s<br/><br/>Enriched Phenotypes:<br/>%s", paste(metabs, collapse = '<br/>'),enrichedPhenos)
+                   usedMetabs <- sprintf("This cluster was calculed using the following metabolites: <br/>%s<br/><br/>Significant Phenotypes:<br/>%s", paste(metabs, collapse = '<br/>'),enrichedPhenos)
                    output$metabUsed <- renderUI(HTML(usedMetabs))
                    
                    clusterNumbers[currentCluster$objects] <- 17
@@ -510,6 +540,7 @@ server <- function(input, output, session) {
       finalValues$pheno$None <- numeric(length(finalValues$id[[1]]))
       
       columnNames <- names(finalValues$pheno)
+      #clusteringData$PhenoPValues <- as.list(rep(NA,length(columnNames)))
       columns <- seq_len(length(columnNames))
       names(columns)<-columnNames
       if (length(columns)>0){
@@ -718,7 +749,11 @@ server <- function(input, output, session) {
       } 
       
       if (len>0){
-        pValues <- unlist(sapply(current, function(x) calcPValueForCluster(x,finalValues$pheno[[as.numeric(input$selectedPhenotype)]])))
+        if (is.null(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]])){
+          clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]] <- unlist(sapply(current, function(x) calcPValueForCluster(x,finalValues$pheno[[as.numeric(input$selectedPhenotype)]])))
+        }
+        
+        pValues <- clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]
         pValues <- c(max(pValues)+1,pValues)
         
         if (length(columns)!=length(pValues)){
