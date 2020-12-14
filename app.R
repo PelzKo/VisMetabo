@@ -184,15 +184,15 @@ server <- function(input, output, session) {
         )
       }
       
-      phenotype <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
+      origPheno <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
+      phenotype <- origPheno
       phenotypeNoNa <- phenotype[!is.na(phenotype)]
       
       
       if (class(phenotype)=="character"){
+        origPheno <- factor(origPheno)
         phenotype <- as.numeric(factor(phenotype))
-      } else if (class(phenotype)=="character"){
-        phenotype <- as.numeric(phenotype)
-        phenotypeNoNa <- as.numeric(phenotypeNoNa)
+        phenotypeNoNa <- as.numeric(factor(phenotypeNoNa))
       } else {
         if (input$removeOutliers[[1]]){
           n <- 5
@@ -211,18 +211,27 @@ server <- function(input, output, session) {
         output$phenoHist <- NULL
         
       } else {
-        colorPalette <- getColors(length(unique(phenotype[!is.na(phenotype)])))
+        colorPalette <- getColors(length(unique(phenotypeNoNa)))
         if (input$reverse[[1]]){
           output$min <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[1],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s",sep = ""), fourDeci(min(phenotypeNoNa)))))
           output$max <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[length(colorPalette)],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s",sep = ""), fourDeci(max(phenotypeNoNa)))))
           coloredPoints <- vecToCol(phenotype,colorPalette)
         } else {
-          output$min <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[length(colorPalette)],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s",sep = ""), fourDeci(min(phenotypeNoNa)))))
-          output$max <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[1],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s",sep = ""), fourDeci(max(phenotypeNoNa)))))
-          coloredPoints <- vecToCol(phenotype,rev(colorPalette))
+          colorPalette <- rev(colorPalette)
+          output$min <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[1],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Min: %s",sep = ""), fourDeci(min(phenotypeNoNa)))))
+          output$max <- renderUI(HTML(sprintf(paste("<div style='background-color: ",colorPalette[length(colorPalette)],";height: 18px;width: 18px;float: left;margin-right: 3px;'></div> Max: %s",sep = ""), fourDeci(max(phenotypeNoNa)))))
+          coloredPoints <- vecToCol(phenotype,colorPalette)
         }
         output$phenoInfo <- renderText(sprintf("Mean of phenotypes after normalization between 0 and 1: %s", fourDeci(mean(range01(phenotypeNoNa)))))
-        output$phenoHist <- renderPlot(hist(phenotype))
+        if (class(origPheno)=="factor"){
+          #print(colorPalette)
+          output$phenoHist <- renderPlot({
+                                hist(phenotypeNoNa,xlab="Phenotype as factors",main="Frequency of levels", col=colorPalette,breaks=seq(0,length(levels(origPheno))))
+                                legend("topright",levels(origPheno),col=colorPalette,pch=15,pt.cex = 2)
+                              })
+        } else {
+          output$phenoHist <- renderPlot(hist(phenotype))
+        }
       }
       
       clusterNumbers <- rep(16,nrow(metabComplete))
@@ -708,15 +717,16 @@ server <- function(input, output, session) {
         columns <- sort(c(0,unique(clusteringData$SOM$unit.classif)))
       } 
       
-      pValues <- unlist(sapply(current, function(x) calcPValueForCluster(x,finalValues$pheno[[as.numeric(input$selectedPhenotype)]])))
-      pValues <- c(max(pValues)+1,pValues)
-      
-      if (length(columns)!=length(pValues)){
-        print("Something is wrong")
-        print(paste("Columns:",length(columns),"pValues:",length(pValues)))
+      if (len>0){
+        pValues <- unlist(sapply(current, function(x) calcPValueForCluster(x,finalValues$pheno[[as.numeric(input$selectedPhenotype)]])))
+        pValues <- c(max(pValues)+1,pValues)
+        
+        if (length(columns)!=length(pValues)){
+          print("Something is wrong")
+          print(paste("Columns:",length(columns),"pValues:",length(pValues)))
+        }
+        columns <- columns[order(pValues)]
       }
-      
-      columns <- columns[order(pValues)]
       
       updateSelectInput(session, "clusterId", choices = columns)
     } else {
@@ -914,12 +924,15 @@ calcPValueForCluster <- function(cluster,phenotype){
     return(getChiForCluster(cluster,phenotype,TRUE))
   } else {
     cluster <- as.numeric(cluster)
+    if (class(phenotype)=="character"){
+      phenotype <- factor(phenotype)
+    }
     phenotype <- as.numeric(phenotype)
     clusterPhenos <- phenotype[cluster]
     clusterPhenos <- clusterPhenos[!is.na(clusterPhenos)]
     nonClusterPhenos <- phenotype[-cluster]
     nonClusterPhenos <- nonClusterPhenos[!is.na(nonClusterPhenos)]
-    if(length(unique(c(clusterPhenos,nonClusterPhenos)))==1){
+    if(length(unique(c(clusterPhenos,nonClusterPhenos)))==1||length(clusterPhenos)==0||length(nonClusterPhenos)==0){
       return(1)
     } else if(length(unique(clusterPhenos))==1 & length(unique(nonClusterPhenos))==1){
       return(0)
