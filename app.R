@@ -264,12 +264,32 @@ server <- function(input, output, session) {
                      currentPheno <- finalValues$pheno[[i]]
                      pVal <- calcPValueForCluster(currentCluster,currentPheno)
                      if (pVal<0.05){
-                       enrichedPhenos <- sprintf("%s%s with a pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],pVal)
+                       if (class(currentPheno)=="character"){
+                         phenoAsFactor <- factor(currentPheno)
+                         countsAll <- table(factor(c(currentPheno,levels(phenoAsFactor))))
+                         countsIn <- table(factor(c(currentPheno[currentCluster],levels(phenoAsFactor))))
+                         countsOut <- table(factor(c(currentPheno[-currentCluster],levels(phenoAsFactor))))
+                         relCountsAll <- countsAll/sum(countsAll)
+                         relCountsIn <- countsIn/sum(countsIn)
+                         relCountsOut <- countsOut/sum(countsOut)
+                         inside <- relCountsIn-relCountsAll
+                         outside <- relCountsOut-relCountsAll
+                         details <- ""
+                         for (i in seq_len(length(inside))){
+                           details <- sprintf("%s%s: %s vs. %s<br/>",details,names(inside)[[i]],fourDeci(inside[[i]]),fourDeci(outside[[i]]))
+                         }
+                         enrichedPhenos <- sprintf("%s<br/>%s (Deviation from percentage mean overall): in cluster vs. outside cluster<br/>%s-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],details,pVal)
+                       } else {
+                         meanAll <- mean(currentPheno,na.rm = TRUE)
+                         meanInside <- mean(currentPheno[currentCluster],na.rm = TRUE)
+                         meanOutside <- mean(currentPheno[-currentCluster],na.rm = TRUE)
+                         enrichedPhenos <- sprintf("%s<br/>%s (mean overall: %s): %s in cluster, %s outside of cluster<br/>-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],fourDeci(meanAll),fourDeci(meanInside),fourDeci(meanOutside),pVal)
+                       }
                      }
                    }
                    numberOfClusters <- length(unique(clusteringData$SOM$unit.classif))
                    enrichedPhenos <- sprintf("%s<br/>Bonferroni cut-off with %s clusters would be %s<br/>",enrichedPhenos,numberOfClusters,0.05/numberOfClusters)
-                   if (!is.na(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]])){
+                   if (pValueExists(input$clusteringType,input$selectedPhenotype)){
                      sumNormal <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<0.05,na.rm = TRUE)
                      sumBonferroni <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<(0.05/numberOfClusters),na.rm = TRUE)
                      enrichedPhenos <- sprintf("%s%s Clusters are significant (for this phenotype) with the cutoff <0.05<br/>%s Clusters are significant (for this phenotype) with the Bonferroni cutoff<br/>",enrichedPhenos,sumNormal,sumBonferroni)
@@ -295,13 +315,33 @@ server <- function(input, output, session) {
                      currentPheno <- finalValues$pheno[[i]]
                      pVal <- calcPValueForCluster(currentCluster,currentPheno)
                      if (pVal<0.05){
-                       enrichedPhenos <- sprintf("%s%s with a pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],pVal)
+                       if (class(currentPheno)=="character"){
+                         phenoAsFactor <- factor(currentPheno)
+                         countsAll <- table(factor(c(currentPheno,levels(phenoAsFactor))))
+                         countsIn <- table(factor(c(currentPheno[currentCluster],levels(phenoAsFactor))))
+                         countsOut <- table(factor(c(currentPheno[-currentCluster],levels(phenoAsFactor))))
+                         relCountsAll <- countsAll/sum(countsAll)
+                         relCountsIn <- countsIn/sum(countsIn)
+                         relCountsOut <- countsOut/sum(countsOut)
+                         inside <- relCountsIn-relCountsAll
+                         outside <- relCountsOut-relCountsAll
+                         details <- ""
+                         for (i in seq_len(length(inside))){
+                           details <- sprintf("%s%s: %s vs. %s<br/>",details,names(inside)[[i]],fourDeci(inside[[i]]),fourDeci(outside[[i]]))
+                         }
+                         enrichedPhenos <- sprintf("%s<br/>%s (Deviation from percentage mean overall): in cluster vs. outside cluster<br/>%s-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],details,pVal)
+                       } else {
+                         meanAll <- mean(currentPheno,na.rm = TRUE)
+                         meanInside <- mean(currentPheno[currentCluster],na.rm = TRUE)
+                         meanOutside <- mean(currentPheno[-currentCluster],na.rm = TRUE)
+                         enrichedPhenos <- sprintf("%s<br/>%s (mean overall: %s): %s in cluster, %s outside of cluster<br/>-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],fourDeci(meanAll),fourDeci(meanInside),fourDeci(meanOutside),pVal)
+                       }
                      }
                    }
                    
                    numberOfClusters <- length(temps$index)
                    enrichedPhenos <- sprintf("%s<br/>Bonferroni cut-off with %s clusters would be %s<br/>",enrichedPhenos,numberOfClusters,0.05/numberOfClusters)
-                   if (!is.na(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]])){
+                   if (pValueExists(input$clusteringType,input$selectedPhenotype)){
                      sumNormal <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<0.05,na.rm = TRUE)
                      sumBonferroni <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<(0.05/numberOfClusters),na.rm = TRUE)
                      enrichedPhenos <- sprintf("%s%s Clusters are significant (for this phenotype) with the cutoff <0.05<br/>%s Clusters are significant (for this phenotype) with the Bonferroni cutoff<br/>",enrichedPhenos,sumNormal,sumBonferroni)
@@ -333,13 +373,33 @@ server <- function(input, output, session) {
                      currentPheno <- finalValues$pheno[[i]]
                      pVal <- calcPValueForCluster(currentCluster,currentPheno)
                      if (pVal<0.05){
-                       enrichedPhenos <- sprintf("%s%s with a pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],pVal)
+                       if (class(currentPheno)=="character"){
+                         phenoAsFactor <- factor(currentPheno)
+                         countsAll <- table(factor(c(currentPheno,levels(phenoAsFactor))))
+                         countsIn <- table(factor(c(currentPheno[currentCluster],levels(phenoAsFactor))))
+                         countsOut <- table(factor(c(currentPheno[-currentCluster],levels(phenoAsFactor))))
+                         relCountsAll <- countsAll/sum(countsAll)
+                         relCountsIn <- countsIn/sum(countsIn)
+                         relCountsOut <- countsOut/sum(countsOut)
+                         inside <- relCountsIn-relCountsAll
+                         outside <- relCountsOut-relCountsAll
+                         details <- ""
+                         for (i in seq_len(length(inside))){
+                           details <- sprintf("%s%s: %s vs. %s<br/>",details,names(inside)[[i]],fourDeci(inside[[i]]),fourDeci(outside[[i]]))
+                         }
+                         enrichedPhenos <- sprintf("%s<br/>%s (Deviation from percentage mean overall): in cluster vs. outside cluster<br/>%s-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],details,pVal)
+                       } else {
+                         meanAll <- mean(currentPheno,na.rm = TRUE)
+                         meanInside <- mean(currentPheno[currentCluster],na.rm = TRUE)
+                         meanOutside <- mean(currentPheno[-currentCluster],na.rm = TRUE)
+                         enrichedPhenos <- sprintf("%s<br/>%s (mean overall: %s): %s in cluster, %s outside of cluster<br/>-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],fourDeci(meanAll),fourDeci(meanInside),fourDeci(meanOutside),pVal)
+                       }
                      }
                    }
                    
                    numberOfClusters <- length(idsInClustersDoc)
                    enrichedPhenos <- sprintf("%s<br/>Bonferroni cut-off with %s clusters would be %s<br/>",enrichedPhenos,numberOfClusters,0.05/numberOfClusters)
-                   if (!is.na(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]])){
+                   if (pValueExists(input$clusteringType,input$selectedPhenotype)){
                      sumNormal <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<0.05,na.rm = TRUE)
                      sumBonferroni <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<(0.05/numberOfClusters),na.rm = TRUE)
                      enrichedPhenos <- sprintf("%s%s Clusters are significant (for this phenotype) with the cutoff <0.05<br/>%s Clusters are significant (for this phenotype) with the Bonferroni cutoff<br/>",enrichedPhenos,sumNormal,sumBonferroni)
@@ -379,12 +439,32 @@ server <- function(input, output, session) {
                      #print(names(finalValues$pheno)[[i]])
                      pVal <- calcPValueForCluster(currentCluster$objects,currentPheno)
                      if (pVal<0.05){
-                       enrichedPhenos <- sprintf("%s%s with a pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],pVal)
+                       if (class(currentPheno)=="character"){
+                         phenoAsFactor <- factor(currentPheno)
+                         countsAll <- table(factor(c(currentPheno,levels(phenoAsFactor))))
+                         countsIn <- table(factor(c(currentPheno[currentCluster$objects],levels(phenoAsFactor))))
+                         countsOut <- table(factor(c(currentPheno[-currentCluster$objects],levels(phenoAsFactor))))
+                         relCountsAll <- countsAll/sum(countsAll)
+                         relCountsIn <- countsIn/sum(countsIn)
+                         relCountsOut <- countsOut/sum(countsOut)
+                         inside <- relCountsIn-relCountsAll
+                         outside <- relCountsOut-relCountsAll
+                         details <- ""
+                         for (i in seq_len(length(inside))){
+                           details <- sprintf("%s%s: %s vs. %s<br/>",details,names(inside)[[i]],fourDeci(inside[[i]]),fourDeci(outside[[i]]))
+                         }
+                         enrichedPhenos <- sprintf("%s<br/>%s (Deviation from percentage mean overall): in cluster vs. outside cluster<br/>%s-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],details,pVal)
+                       } else {
+                         meanAll <- mean(currentPheno,na.rm = TRUE)
+                         meanInside <- mean(currentPheno[currentCluster$objects],na.rm = TRUE)
+                         meanOutside <- mean(currentPheno[-currentCluster$objects],na.rm = TRUE)
+                         enrichedPhenos <- sprintf("%s<br/>%s (mean overall: %s): %s in cluster, %s outside of cluster<br/>-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],fourDeci(meanAll),fourDeci(meanInside),fourDeci(meanOutside),pVal)
+                       }
                      }
                    }
                    numberOfClusters <- length(clusteringData$Clique)
                    enrichedPhenos <- sprintf("%s<br/>Bonferroni cut-off with %s clusters would be %s<br/>",enrichedPhenos,numberOfClusters,0.05/numberOfClusters)
-                   if (!is.na(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]])){
+                   if (pValueExists(input$clusteringType,input$selectedPhenotype)){
                      sumNormal <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<0.05,na.rm = TRUE)
                      sumBonferroni <- sum(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]<(0.05/numberOfClusters),na.rm = TRUE)
                      enrichedPhenos <- sprintf("%s%s Clusters are significant (for this phenotype) with the cutoff <0.05<br/>%s Clusters are significant (for this phenotype) with the Bonferroni cutoff<br/>",enrichedPhenos,sumNormal,sumBonferroni)
@@ -734,7 +814,7 @@ server <- function(input, output, session) {
                                  label = "Select the cluster:",
                                  choices = list()),
                      checkboxInput(inputId = "colorClusterNoPheno",
-                                   label = "Color Cluster instead of phenotype"),
+                                   label = "Color cluster in red instead of phenotype"),
                      htmlOutput("metabUsed")
               )
             )
@@ -749,7 +829,7 @@ server <- function(input, output, session) {
       } 
       
       if (len>0){
-        if (is.null(clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]])){
+        if (!pValueExists(input$clusteringType,input$selectedPhenotype)){
           clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]] <- unlist(sapply(current, function(x) calcPValueForCluster(x,finalValues$pheno[[as.numeric(input$selectedPhenotype)]])))
         }
         
@@ -889,6 +969,15 @@ server <- function(input, output, session) {
   }
   
   
+  pValueExists <- function(clustType,phenotype){
+    one <- !is.null(clusteringData$PhenoPValues[[clustType]])
+    two <- length(clusteringData$PhenoPValues[[clustType]])>=as.numeric(phenotype)
+    result <- one & two
+    if (result){
+      result <- !is.null(clusteringData$PhenoPValues[[clustType]][[as.numeric(phenotype)]])
+    }
+    return(result)
+  }
 }
 
 #Scales vector to the range 0 to 1
@@ -1005,6 +1094,7 @@ getChiForCluster <- function(cluster,phenotype,pvalue=FALSE){
   }
   return(chi$statistic)
 }
+
 
 
 
