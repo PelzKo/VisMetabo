@@ -916,7 +916,7 @@ server <- function(input, output, session) {
         temps$clickHist <- x
         temps$grps <- grps
         temps$index <- unique(retval)
-        temps$index <- temps$index[!sapply(temps$index, is.null)]
+        temps$index <- temps$index[!unlist(sapply(temps$index, is.null))]
         #invisible(list(grps = grps, index = retval))
       }
       outPlot <- ggdendrogram(clusteringData$COSA$hist$dendro)
