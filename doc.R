@@ -3,6 +3,12 @@ library(rJava)
 #setwd("C:\\Users\\Konstantin\\Desktop\\Uni\\6Semester\\BachelorArbeit\\code")
 
 runDoc <- function(data, alpha=0.2, beta=0.8, w=0.05){
+  data <- apply(data, 2, function(x) {
+            if (suppressWarnings(is.na(as.numeric(x[[1]])))){
+              return(as.numeric(factor(x)))
+            }
+            return(as.numeric(x))
+          })
   initDoc()
   clusterApplier <- .jnew("ClusterApplier")
   arrayDouble <- .jcall(clusterApplier, "[[D", "matrix_from_array",as.vector(as.matrix(data)),ncol(data),evalArray=F)
