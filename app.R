@@ -7,6 +7,7 @@ library(rCOSA)
 library(kohonen)
 library(rJava)
 library(RANN)
+library(rlist)
 library(dummies)
 library(ggdendro)
 
@@ -43,20 +44,26 @@ ui <- fluidPage(
     ),
     # Input Validation Panel
     tabPanel(title = "Specifying Column Types", value = "1",
-      selectInput(inputId = "idField",
-                 label = "Unique ID:",
-                 choices = list()),
-      textOutput(outputId = "idError"),
-      selectInput(inputId = "metabStart",
-                 label = "First Metabolite:",
-                 choices = list()),
-      selectInput(inputId = "metabEnd",
-                 label = "Last Metabolite:",
-                 choices = list()),
-      actionButton("toOut", "Cluster Now")
+        selectInput(inputId = "idField",
+                    label = "Unique ID:",
+                    choices = list()),
+        textOutput(outputId = "idError"),
+        selectInput(inputId = "metabStart",
+                    label = "First Metabolite:",
+                    choices = list()),
+        selectInput(inputId = "metabEnd",
+                    label = "Last Metabolite:",
+                    choices = list()),
+        actionButton("toPheno", "Continue")
+
+    ),
+    # Phenotype validation Panel
+    tabPanel(title = "Phenotype factor identification", value = "2",
+             uiOutput("phenoWhichFactor"),
+             actionButton("toOut", "Cluster Now")
     ),
     # Output Panel
-    tabPanel(title = "Output", value = "2",
+    tabPanel(title = "Output", value = "3",
       # Sidebar layout with input and output definitions ----
       sidebarLayout(
         
@@ -88,10 +95,11 @@ ui <- fluidPage(
         # Main panel for displaying outputs ----
         mainPanel(
           
-          bsModal("cosaHist", "Histogram of the rCosa", "go", size = "large",plotOutput("hist", click = "clickHist")),
+          bsModal("cosaHist", "Histogram of the rCosa", "go", size = "large",plotOutput("hist", click = "clickHist"),actionButton("autoCluster", "Select clusters automatically")),
           uiOutput("clusteringPlot"),
           uiOutput("pcaAll"),
           uiOutput("downloadButton"),
+          uiOutput("downloadClusterIds"),
           htmlOutput("info"),
           
           width = 9
@@ -105,7 +113,7 @@ ui <- fluidPage(
 
 # Define server logic required ----
 server <- function(input, output, session) {
-  plotsSize <- "1000px"
+  plotsSize <- 1000
   # Data uploaded by the user
   data <- reactive({
     if (!is.null(input$inputData)){
@@ -116,9 +124,10 @@ server <- function(input, output, session) {
     }
   })
   # Transformed/normalized data
-  finalValues <- reactiveValues(id = 1, metab = list(), pheno = list())
+  finalValues <- reactiveValues(id = 1, metab = list(), pheno = list(), phenoFactors = logical())
   # Clusters
   clusteringData <- reactiveValues(Clique = list(), CliqueMDS = list(), SOM = list(), COSA = list(), DOC = list(), DocMDS = list(), PhenoPValues = list())
+  SOMLastPheno <<- -1
   # PCAData
   pcaValues <- reactiveValues()
   #Temp Values to distinguish which click/brush changed
@@ -238,13 +247,14 @@ server <- function(input, output, session) {
       clusterColors <- rep("blue",nrow(metabComplete))
       switch(input$clusteringType,
              SOM={
-               output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", click = "clustering_click"))
-               #output$clustering <- renderPlot(plot(clusteringData$SOM, type="mapping", classif=predict(clusteringData$SOM)
-               #                                     , pchs = c(1,2,3,4,5)))
-               if (as.numeric(input$selectedPhenotype)==length(finalValues$pheno)){
-                 output$clustering <- renderPlot(plotHeatMap(clusteringData$SOM,finalValues$pheno,0))
-               } else {
-                 output$clustering <- renderPlot(plotHeatMap(clusteringData$SOM,finalValues$pheno,as.numeric(input$selectedPhenotype)))
+               if (as.numeric(input$selectedPhenotype)!=SOMLastPheno){
+                 output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", click = "clustering_click", height = plotsSize/2, width = plotsSize/2))
+                 if (as.numeric(input$selectedPhenotype)==length(finalValues$pheno)){
+                   output$clustering <- renderPlot(plotHeatMap(clusteringData$SOM,finalValues$pheno[-length(finalValues$pheno)],0))
+                 } else {
+                   output$clustering <- renderPlot(plotHeatMap(clusteringData$SOM,finalValues$pheno[-length(finalValues$pheno)],as.numeric(input$selectedPhenotype)))
+                 }
+                 SOMLastPheno <<- as.numeric(input$selectedPhenotype)
                }
                
                #clusters <- as.character(sort(unique(clusteringData$SOM$unit.classif)))
@@ -259,34 +269,8 @@ server <- function(input, output, session) {
                    clusterNumbers[clusteringData$SOM$unit.classif==input$clusterId] <- 17
                    clusterColors[clusteringData$SOM$unit.classif==input$clusterId] <- "red"
                    currentCluster <- getCurrentClusters()[[as.numeric(input$clusterId)]]
-                   enrichedPhenos <- ""
-                   for (i in seq_len(length(finalValues$pheno)-1)){
-                     currentPheno <- finalValues$pheno[[i]]
-                     pVal <- calcPValueForCluster(currentCluster,currentPheno)
-                     if (pVal<0.05){
-                       if (class(currentPheno)=="character"){
-                         phenoAsFactor <- factor(currentPheno)
-                         countsAll <- table(factor(c(currentPheno,levels(phenoAsFactor))))
-                         countsIn <- table(factor(c(currentPheno[currentCluster],levels(phenoAsFactor))))
-                         countsOut <- table(factor(c(currentPheno[-currentCluster],levels(phenoAsFactor))))
-                         relCountsAll <- countsAll/sum(countsAll)
-                         relCountsIn <- countsIn/sum(countsIn)
-                         relCountsOut <- countsOut/sum(countsOut)
-                         inside <- relCountsIn-relCountsAll
-                         outside <- relCountsOut-relCountsAll
-                         details <- ""
-                         for (i in seq_len(length(inside))){
-                           details <- sprintf("%s%s: %s vs. %s<br/>",details,names(inside)[[i]],fourDeci(inside[[i]]),fourDeci(outside[[i]]))
-                         }
-                         enrichedPhenos <- sprintf("%s<br/>%s (Deviation from percentage mean overall): in cluster vs. outside cluster<br/>%s-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],details,pVal)
-                       } else {
-                         meanAll <- mean(currentPheno,na.rm = TRUE)
-                         meanInside <- mean(currentPheno[currentCluster],na.rm = TRUE)
-                         meanOutside <- mean(currentPheno[-currentCluster],na.rm = TRUE)
-                         enrichedPhenos <- sprintf("%s<br/>%s (mean overall: %s): %s in cluster, %s outside of cluster<br/>-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],fourDeci(meanAll),fourDeci(meanInside),fourDeci(meanOutside),pVal)
-                       }
-                     }
-                   }
+                   enrichedPhenos <- getEnrichedString(currentCluster)
+                   
                    numberOfClusters <- length(unique(clusteringData$SOM$unit.classif))
                    enrichedPhenos <- sprintf("%s<br/>Bonferroni cut-off with %s clusters would be %s<br/>",enrichedPhenos,numberOfClusters,0.05/numberOfClusters)
                    if (pValueExists(input$clusteringType,input$selectedPhenotype)){
@@ -310,34 +294,7 @@ server <- function(input, output, session) {
                    currentCluster <- temps$index[[as.numeric(input$clusterId)]]
                    clusterNumbers[currentCluster] <- 17
                    clusterColors[currentCluster] <- "red"
-                   enrichedPhenos <- ""
-                   for (i in seq_len(length(finalValues$pheno)-1)){
-                     currentPheno <- finalValues$pheno[[i]]
-                     pVal <- calcPValueForCluster(currentCluster,currentPheno)
-                     if (pVal<0.05){
-                       if (class(currentPheno)=="character"){
-                         phenoAsFactor <- factor(currentPheno)
-                         countsAll <- table(factor(c(currentPheno,levels(phenoAsFactor))))
-                         countsIn <- table(factor(c(currentPheno[currentCluster],levels(phenoAsFactor))))
-                         countsOut <- table(factor(c(currentPheno[-currentCluster],levels(phenoAsFactor))))
-                         relCountsAll <- countsAll/sum(countsAll)
-                         relCountsIn <- countsIn/sum(countsIn)
-                         relCountsOut <- countsOut/sum(countsOut)
-                         inside <- relCountsIn-relCountsAll
-                         outside <- relCountsOut-relCountsAll
-                         details <- ""
-                         for (i in seq_len(length(inside))){
-                           details <- sprintf("%s%s: %s vs. %s<br/>",details,names(inside)[[i]],fourDeci(inside[[i]]),fourDeci(outside[[i]]))
-                         }
-                         enrichedPhenos <- sprintf("%s<br/>%s (Deviation from percentage mean overall): in cluster vs. outside cluster<br/>%s-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],details,pVal)
-                       } else {
-                         meanAll <- mean(currentPheno,na.rm = TRUE)
-                         meanInside <- mean(currentPheno[currentCluster],na.rm = TRUE)
-                         meanOutside <- mean(currentPheno[-currentCluster],na.rm = TRUE)
-                         enrichedPhenos <- sprintf("%s<br/>%s (mean overall: %s): %s in cluster, %s outside of cluster<br/>-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],fourDeci(meanAll),fourDeci(meanInside),fourDeci(meanOutside),pVal)
-                       }
-                     }
-                   }
+                   enrichedPhenos <- getEnrichedString(currentCluster)
                    
                    numberOfClusters <- length(temps$index)
                    enrichedPhenos <- sprintf("%s<br/>Bonferroni cut-off with %s clusters would be %s<br/>",enrichedPhenos,numberOfClusters,0.05/numberOfClusters)
@@ -368,34 +325,7 @@ server <- function(input, output, session) {
                if(!is.null(input$clusterId)){#&input$pcaSwitch[[1]]){
                  if (input$clusterId!=0){
                    currentCluster <- idsInClustersDoc[[as.numeric(input$clusterId)]]
-                   enrichedPhenos <- ""
-                   for (i in seq_len(length(finalValues$pheno)-1)){
-                     currentPheno <- finalValues$pheno[[i]]
-                     pVal <- calcPValueForCluster(currentCluster,currentPheno)
-                     if (pVal<0.05){
-                       if (class(currentPheno)=="character"){
-                         phenoAsFactor <- factor(currentPheno)
-                         countsAll <- table(factor(c(currentPheno,levels(phenoAsFactor))))
-                         countsIn <- table(factor(c(currentPheno[currentCluster],levels(phenoAsFactor))))
-                         countsOut <- table(factor(c(currentPheno[-currentCluster],levels(phenoAsFactor))))
-                         relCountsAll <- countsAll/sum(countsAll)
-                         relCountsIn <- countsIn/sum(countsIn)
-                         relCountsOut <- countsOut/sum(countsOut)
-                         inside <- relCountsIn-relCountsAll
-                         outside <- relCountsOut-relCountsAll
-                         details <- ""
-                         for (i in seq_len(length(inside))){
-                           details <- sprintf("%s%s: %s vs. %s<br/>",details,names(inside)[[i]],fourDeci(inside[[i]]),fourDeci(outside[[i]]))
-                         }
-                         enrichedPhenos <- sprintf("%s<br/>%s (Deviation from percentage mean overall): in cluster vs. outside cluster<br/>%s-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],details,pVal)
-                       } else {
-                         meanAll <- mean(currentPheno,na.rm = TRUE)
-                         meanInside <- mean(currentPheno[currentCluster],na.rm = TRUE)
-                         meanOutside <- mean(currentPheno[-currentCluster],na.rm = TRUE)
-                         enrichedPhenos <- sprintf("%s<br/>%s (mean overall: %s): %s in cluster, %s outside of cluster<br/>-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],fourDeci(meanAll),fourDeci(meanInside),fourDeci(meanOutside),pVal)
-                       }
-                     }
-                   }
+                   enrichedPhenos <- getEnrichedString(currentCluster)
                    
                    numberOfClusters <- length(idsInClustersDoc)
                    enrichedPhenos <- sprintf("%s<br/>Bonferroni cut-off with %s clusters would be %s<br/>",enrichedPhenos,numberOfClusters,0.05/numberOfClusters)
@@ -433,35 +363,7 @@ server <- function(input, output, session) {
                if(!is.null(input$clusterId)){
                  if (input$clusterId!=0&input$clusterId!=""){
                    currentCluster <- clusteringData$Clique[as.numeric(input$clusterId)][[1]]
-                   enrichedPhenos <- ""
-                   for (i in seq_len(length(finalValues$pheno)-1)){
-                     currentPheno <- finalValues$pheno[[i]]
-                     #print(names(finalValues$pheno)[[i]])
-                     pVal <- calcPValueForCluster(currentCluster$objects,currentPheno)
-                     if (pVal<0.05){
-                       if (class(currentPheno)=="character"){
-                         phenoAsFactor <- factor(currentPheno)
-                         countsAll <- table(factor(c(currentPheno,levels(phenoAsFactor))))
-                         countsIn <- table(factor(c(currentPheno[currentCluster$objects],levels(phenoAsFactor))))
-                         countsOut <- table(factor(c(currentPheno[-currentCluster$objects],levels(phenoAsFactor))))
-                         relCountsAll <- countsAll/sum(countsAll)
-                         relCountsIn <- countsIn/sum(countsIn)
-                         relCountsOut <- countsOut/sum(countsOut)
-                         inside <- relCountsIn-relCountsAll
-                         outside <- relCountsOut-relCountsAll
-                         details <- ""
-                         for (i in seq_len(length(inside))){
-                           details <- sprintf("%s%s: %s vs. %s<br/>",details,names(inside)[[i]],fourDeci(inside[[i]]),fourDeci(outside[[i]]))
-                         }
-                         enrichedPhenos <- sprintf("%s<br/>%s (Deviation from percentage mean overall): in cluster vs. outside cluster<br/>%s-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],details,pVal)
-                       } else {
-                         meanAll <- mean(currentPheno,na.rm = TRUE)
-                         meanInside <- mean(currentPheno[currentCluster$objects],na.rm = TRUE)
-                         meanOutside <- mean(currentPheno[-currentCluster$objects],na.rm = TRUE)
-                         enrichedPhenos <- sprintf("%s<br/>%s (mean overall: %s): %s in cluster, %s outside of cluster<br/>-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],fourDeci(meanAll),fourDeci(meanInside),fourDeci(meanOutside),pVal)
-                       }
-                     }
-                   }
+                   enrichedPhenos <- getEnrichedString(currentCluster$objects)
                    numberOfClusters <- length(clusteringData$Clique)
                    enrichedPhenos <- sprintf("%s<br/>Bonferroni cut-off with %s clusters would be %s<br/>",enrichedPhenos,numberOfClusters,0.05/numberOfClusters)
                    if (pValueExists(input$clusteringType,input$selectedPhenotype)){
@@ -517,6 +419,36 @@ server <- function(input, output, session) {
   
   #height = function() {session$clientData$output_pca_width}
   
+  getEnrichedString <- function(cluster){
+    enrichedPhenos <- ""
+    for (i in seq_len(length(finalValues$pheno)-1)){
+      currentPheno <- finalValues$pheno[[i]]
+      pVal <- calcPValueForCluster(cluster,currentPheno,i)
+      if (pVal<0.05){
+        if (class(currentPheno)=="character"){
+          phenoAsFactor <- factor(currentPheno)
+          countsAll <- table(factor(currentPheno,levels(phenoAsFactor)))
+          countsIn <- table(factor(currentPheno[cluster],levels(phenoAsFactor)))
+          countsOut <- table(factor(currentPheno[-cluster],levels(phenoAsFactor)))
+          relCountsAll <- (countsAll/sum(countsAll))*100
+          relCountsIn <- (countsIn/sum(countsIn))*100
+          relCountsOut <- (countsOut/sum(countsOut))*100
+          details <- ""
+          for (i in seq_len(length(relCountsAll))){
+            details <- sprintf("%s%s (mean overall: %s%%): %s%% vs. %s%%<br/>",details,names(relCountsAll)[[i]],twoDeci(relCountsAll[[i]]),twoDeci(relCountsIn[[i]]),twoDeci(relCountsOut[[i]]))
+          }
+          enrichedPhenos <- sprintf("%s<br/>%s (Percentage mean overall): in cluster vs. outside cluster<br/>%s-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],details,pVal)
+        } else {
+          meanAll <- mean(currentPheno,na.rm = TRUE)
+          meanInside <- mean(currentPheno[cluster],na.rm = TRUE)
+          meanOutside <- mean(currentPheno[-cluster],na.rm = TRUE)
+          enrichedPhenos <- sprintf("%s<br/>%s (mean overall: %s): %s in cluster, %s outside of cluster<br/>-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],fourDeci(meanAll),fourDeci(meanInside),fourDeci(meanOutside),pVal)
+        }
+      }
+    }
+    return(enrichedPhenos)
+  }
+  
   # Goto Input Validation Panel
   observeEvent(input$toTypes, {
     if (length(data())==4){
@@ -526,6 +458,7 @@ server <- function(input, output, session) {
       updateSelectInput(session, "idField", choices = columns, selected = columns[data()$id])
       updateSelectInput(session, "metabStart", choices = columns, selected = columns[data()$metab_start])
       updateSelectInput(session, "metabEnd", choices = columns, selected = columns[data()$metab_end])
+      
     }
     
     updateTabsetPanel(session, "tabs",
@@ -535,6 +468,8 @@ server <- function(input, output, session) {
                  brush = "pca_brush", height = plotsSize, width = plotsSize)
     })
   })
+  
+  
   
   # Check if ID Field is unique
   observeEvent(input$idField, {
@@ -549,6 +484,8 @@ server <- function(input, output, session) {
     }
     
   })
+  
+  
   
   # Reset the saved Clusterings
   observeEvent(input$resetClustering, {
@@ -574,9 +511,11 @@ server <- function(input, output, session) {
              }
       )
   })
+ 
+  
       
   # Goto Output Panel
-  observeEvent(input$toOut, {
+  observeEvent(input$toPheno, {
     if (length(data())==4){
       clusteringData$Clique = list()
       clusteringData$SOM = list()
@@ -617,7 +556,22 @@ server <- function(input, output, session) {
       
       finalValues$metab <- inputData[c(tempStart:tempEnd)]
       finalValues$pheno <- inputData[-c(tempId,c(tempStart:tempEnd))]
+      finalValues$phenoFactors <- logical(length(finalValues$pheno))
       finalValues$pheno$None <- numeric(length(finalValues$id[[1]]))
+      
+      pheno <- finalValues$pheno[-which(names(finalValues$pheno)=="None")]
+      numberLevels <- sapply(pheno, function(x) length(unique(x)))
+      probablyFactors <- seq_len(length(pheno))[numberLevels<10]
+      output$phenoWhichFactor <- renderUI({
+        checkboxGroupInput(
+          "phenosWhichAreFactors",
+          "Please select which phenotypes are factors and not continuos",
+          selected = probablyFactors,
+          choiceNames = names(pheno),
+          choiceValues = seq_len(length(pheno))
+        )
+      })
+      
       
       columnNames <- names(finalValues$pheno)
       #clusteringData$PhenoPValues <- as.list(rep(NA,length(columnNames)))
@@ -631,6 +585,20 @@ server <- function(input, output, session) {
     }
     updateTabsetPanel(session, "tabs",
                       selected = "2")
+  })
+  
+  
+  
+  # Goto Input Validation Panel
+  observeEvent(input$toOut, {
+    if (!is.null(input$phenosWhichAreFactors)){
+      
+      finalValues$phenoFactors[as.numeric(input$phenosWhichAreFactors)] <- TRUE
+      
+    }
+    
+    updateTabsetPanel(session, "tabs",
+                      selected = "3")
   })
   
   #Take phenotypes from different file
@@ -777,6 +745,27 @@ server <- function(input, output, session) {
     
   })
   
+  output$downloadClusterIds <- renderUI({
+    currentClusters <- getCurrentClusters()
+    if (length(currentClusters)==0){
+      return(NULL)
+    } else {
+      downloadButton("downloadClusterValues", "Download ids of current clusters")
+    }
+  })
+  # Downloads the ids of the current clusters
+  output$downloadClusterValues <- downloadHandler(
+    filename = function() {
+      paste("ids-", input$clusteringType, Sys.Date(), ".tsv", sep="")
+    },
+    content = function(file) {
+      currentClusters <- getCurrentClusters()
+      dataToDownload <- unlist(sapply(currentClusters,paste,collapse=","))
+      write(dataToDownload, file,sep = "\t")
+    },
+    contentType = "text/tab-separated-values"
+  )
+  
   output$downloadButton <- renderUI({
     if (length(finalValues$currentIds)==0){
       return(NULL)
@@ -828,9 +817,9 @@ server <- function(input, output, session) {
         columns <- sort(c(0,unique(clusteringData$SOM$unit.classif)))
       } 
       
-      if (len>0){
+      if (len>0&length(finalValues$pheno)!=as.numeric(input$selectedPhenotype)){
         if (!pValueExists(input$clusteringType,input$selectedPhenotype)){
-          clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]] <- unlist(sapply(current, function(x) calcPValueForCluster(x,finalValues$pheno[[as.numeric(input$selectedPhenotype)]])))
+          clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]] <- unlist(sapply(current, function(x) calcPValueForCluster(x,finalValues$pheno[[as.numeric(input$selectedPhenotype)]],as.numeric(input$selectedPhenotype))))
         }
         
         pValues <- clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]]
@@ -880,7 +869,6 @@ server <- function(input, output, session) {
       if (is.null(clusteringData$COSA$hist)){
         clusteringData$COSA$hist <- hierclust(clusteringData$COSA$D, denplot = FALSE)
       }
-      
       if (!is.null(input$clickHist)){
         if (is.null(clusteringData$COSA$hist)|equalsClick(input$clickHist,temps$clickHist)){
           return(clusteringData$COSA$hist)
@@ -978,123 +966,149 @@ server <- function(input, output, session) {
     }
     return(result)
   }
-}
 
-#Scales vector to the range 0 to 1
-range01 <- function(x){(x-min(x[!is.na(x)]))/(max(x[!is.na(x)])-min(x[!is.na(x)]))}
-# round to k decimals
-specify_decimal <- function(k) { function(x){trimws(format(round(x, k), nsmall=k))} }
-# round to 4 decimals
-fourDeci <- specify_decimal(4)
-
-
-
-# Transforms a numbervector into colors
-vecToCol <- function(data, colors){
-  dataNoNa <- data[!is.na(data)]
-  result <- data
-  counter = 1
-  for (i in sort(unique(dataNoNa))){
-    result[result==i] <- colors[counter]
-    counter <- counter + 1
-  }
-  result[is.na(result)]<-"black"
-  result
-}
-#Equa
-equalsBrush <- function(one,two){
-  if (is.null(one)){
-    if (is.null(two)){
-      return(TRUE)
+  #Scales vector to the range 0 to 1
+  range01 <- function(x){(x-min(x[!is.na(x)]))/(max(x[!is.na(x)])-min(x[!is.na(x)]))}
+  # round to k decimals
+  specify_decimal <- function(k) { function(x){trimws(format(round(x, k), nsmall=k))} }
+  # round to 4 decimals
+  fourDeci <- specify_decimal(4)
+  # round to 2 decimals
+  twoDeci <- specify_decimal(2)
+  
+  
+  
+  # Transforms a numbervector into colors
+  vecToCol <- function(data, colors){
+    dataNoNa <- data[!is.na(data)]
+    result <- data
+    counter = 1
+    for (i in sort(unique(dataNoNa))){
+      result[result==i] <- colors[counter]
+      counter <- counter + 1
     }
-    return(FALSE)
-  } else if (is.null(two)) {
-    return(FALSE)
+    result[is.na(result)]<-"black"
+    result
   }
-  return(one$xmin==two$xmin&one$xmax==two$xmax&one$ymin==two$ymin&one$ymax==two$ymax)
-}
-equalsClick <- function(one,two){
-  if (is.null(one)){
-    if (is.null(two)){
-      return(TRUE)
+  #Equa
+  equalsBrush <- function(one,two){
+    if (is.null(one)){
+      if (is.null(two)){
+        return(TRUE)
+      }
+      return(FALSE)
+    } else if (is.null(two)) {
+      return(FALSE)
     }
-    return(FALSE)
-  } else if (is.null(two)) {
-    return(FALSE)
+    return(one$xmin==two$xmin&one$xmax==two$xmax&one$ymin==two$ymin&one$ymax==two$ymax)
   }
-  return(one$x==two$x&one$y==two$y)
-}
-
-#Calculates the w parameter for doc
-calcW <- function(data,c=1){
-  neighbors <- nn2(data,k=2)
-  pairs <- neighbors$nn.idx[,2]
-  counter <- 1
-  wLocals <- lapply(pairs, function(x){
-    one <- data[counter,]
-    counter <- counter + 1
-    two <- data[x,]
-    wLocal <- sum(abs(one-two))/length(one)
-    wLocal
-  })
-  w <- (sum(unlist(wLocals))/length(wLocals))*c
-  w
-}
-
-calcPValueForCluster <- function(cluster,phenotype){
-  phenoNoNa <- phenotype[!is.na(phenotype)]
-  uniNoNa <- unique(phenoNoNa)
-  if (length(uniNoNa)==2){
-    return(getChiForCluster(cluster,phenotype,TRUE))
-  } else {
-    cluster <- as.numeric(cluster)
-    if (class(phenotype)=="character"){
-      phenotype <- factor(phenotype)
+  equalsClick <- function(one,two){
+    if (is.null(one)){
+      if (is.null(two)){
+        return(TRUE)
+      }
+      return(FALSE)
+    } else if (is.null(two)) {
+      return(FALSE)
     }
-    phenotype <- as.numeric(phenotype)
-    clusterPhenos <- phenotype[cluster]
-    clusterPhenos <- clusterPhenos[!is.na(clusterPhenos)]
-    nonClusterPhenos <- phenotype[-cluster]
-    nonClusterPhenos <- nonClusterPhenos[!is.na(nonClusterPhenos)]
-    if(length(unique(c(clusterPhenos,nonClusterPhenos)))==1||length(clusterPhenos)==0||length(nonClusterPhenos)==0){
-      return(1)
-    } else if(length(unique(clusterPhenos))==1 & length(unique(nonClusterPhenos))==1){
-      return(0)
+    return(one$x==two$x&one$y==two$y)
+  }
+  
+  #Calculates the w parameter for doc
+  calcW <- function(data,c=1){
+    neighbors <- nn2(data,k=2)
+    pairs <- neighbors$nn.idx[,2]
+    counter <- 1
+    wLocals <- lapply(pairs, function(x){
+      one <- data[counter,]
+      counter <- counter + 1
+      two <- data[x,]
+      wLocal <- sum(abs(one-two))/length(one)
+      wLocal
+    })
+    w <- (sum(unlist(wLocals))/length(wLocals))*c
+    w
+  }
+  
+  calcPValueForCluster <- function(cluster,phenotype,phenoId){
+    phenoNoNa <- phenotype[!is.na(phenotype)]
+    if (finalValues$phenoFactors[[as.numeric(phenoId)]]){
+      return(getChiForCluster(cluster,phenotype,TRUE))
     } else {
-      return(t.test(clusterPhenos,nonClusterPhenos)$p.value)
+      if (class(phenotype)=="character"){
+        print("ERROR, phenotype is supposed to be continues, but contains characters")
+        return(NULL)
+      }
+      cluster <- as.numeric(cluster)
+      phenotype <- as.numeric(phenotype)
+      clusterPhenos <- phenotype[cluster]
+      clusterPhenos <- clusterPhenos[!is.na(clusterPhenos)]
+      nonClusterPhenos <- phenotype[-cluster]
+      nonClusterPhenos <- nonClusterPhenos[!is.na(nonClusterPhenos)]
+      if(length(unique(c(clusterPhenos,nonClusterPhenos)))==1||length(clusterPhenos)==0||length(nonClusterPhenos)==0){
+        return(1)
+      } else if(length(unique(clusterPhenos))==1 & length(unique(nonClusterPhenos))==1){
+        return(0)
+      } else {
+        return(t.test(clusterPhenos,nonClusterPhenos)$p.value)
+      }
+      
+    }
+  }
+  
+  #Calculate chi-squared value for cluster
+  getChiForCluster <- function(cluster,phenotype,pvalue=FALSE){
+    if (class(phenotype)=="character"){
+      phenotype <- as.numeric(factor(phenotype))
+    }
+    phenoNoNa <- phenotype[!is.na(phenotype)]
+    uniques <- unique(phenoNoNa)
+    
+    cluster <- as.numeric(unlist(cluster))
+    pheno <- as.numeric(unlist(phenotype))
+    counts <- NULL
+    
+    for (i in seq_len(length(uniques))){
+      level <- unique(phenoNoNa)[[i]]
+      clust <- sum(pheno[cluster]==level,na.rm = T)
+      nonClust <- sum(pheno[-cluster]==level,na.rm = T)
+      if (is.null(counts)){
+        counts <- c(clust,nonClust)
+      } else {
+        counts <- cbind(counts,c(clust,nonClust))
+      }
     }
     
+    if (sum(counts)!=length(phenoNoNa)){
+      print("ERROR, table is not correct")
+      return(NULL)
+    }
+    chi <- chisq.test(data.frame(counts))
+    if (pvalue){
+      return(chi$p.value)
+    }
+    return(chi$statistic)
   }
-}
+  
+  # Get all Cosa clusters automatically
+  observeEvent(input$autoCluster, {
+    if (length(data())==4){
+      if (!is.null(clusteringData$COSA$hist)){
+        temps$index <- list.flatten(list(getClusters(clusteringData$COSA$hist$dendro[[1]]),getClusters(clusteringData$COSA$hist$dendro[[2]])))
+      }
+      
+    }
+  })
+  
+  #returns all clusters from a dendrogram which have at least limit elements
+  getClusters <- function(dendro,limit=10){
+    if (nobs(dendro)<limit){
+      return(NULL)
+    }
+    return(list(unlist(dendro),getClusters(dendro[[1]],limit),getClusters(dendro[[2]],limit)))
+  }
 
-#Calculate chi-squared value for cluster
-getChiForCluster <- function(cluster,phenotype,pvalue=FALSE){
-  phenoNoNa <- phenotype[!is.na(phenotype)]
-  one <- unique(phenoNoNa)[[1]]
-  two <- unique(phenoNoNa)[[2]]
-  cluster <- as.numeric(unlist(cluster))
-  pheno <- as.numeric(unlist(phenotype))
-  phenoClust <- sum(pheno[cluster]==one,na.rm = T)
-  phenoNonClust <- sum(pheno[-cluster]==one,na.rm = T)
-  nonPhenoClust <- sum(pheno[cluster]==two,na.rm = T)
-  nonPhenoNonClust <- sum(pheno[-cluster]==two,na.rm = T)
-  #phenoNonClust <- length(pheno[pheno==one])-phenoClust
-  #nonPhenoClust <- length(cluster)-phenoClust
-  #nonPhenoNonClust <- length(pheno[pheno==two])-nonPhenoClust
-  if (phenoClust+phenoNonClust+nonPhenoClust+nonPhenoNonClust!=length(phenoNoNa)){
-    print("ERROR, table is not correct")
-    return(NULL)
-  }
-  result <- data.frame(matrix(c(phenoClust,phenoNonClust,nonPhenoClust,nonPhenoNonClust),nrow = 2,ncol = 2))
-  names(result) <- c("pheno","nonPheno")
-  row.names(result) <- c("inCluster","outCluster")
-  chi <- chisq.test(result)
-  if (pvalue){
-    return(chi$p.value)
-  }
-  return(chi$statistic)
 }
-
 
 
 
