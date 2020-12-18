@@ -290,7 +290,7 @@ server <- function(input, output, session) {
                output$clusteringPlot <- renderUI(plotOutput(outputId = "clustering", brush = "clustering_brush", height = plotsSize, width = plotsSize))
                
                if(!is.null(input$clusterId)){
-                 if (input$clusterId!=0){
+                 if (input$clusterId!=0&length(temps$index)>=as.numeric(input$clusterId)){
                    currentCluster <- temps$index[[as.numeric(input$clusterId)]]
                    clusterNumbers[currentCluster] <- 17
                    clusterColors[currentCluster] <- "red"
@@ -423,9 +423,10 @@ server <- function(input, output, session) {
     enrichedPhenos <- ""
     for (i in seq_len(length(finalValues$pheno)-1)){
       currentPheno <- finalValues$pheno[[i]]
+      #print(names(finalValues$pheno)[[i]])
       pVal <- calcPValueForCluster(cluster,currentPheno,i)
       if (pVal<0.05){
-        if (class(currentPheno)=="character"){
+        if (finalValues$phenoFactors[[i]]){
           phenoAsFactor <- factor(currentPheno)
           countsAll <- table(factor(currentPheno,levels(phenoAsFactor)))
           countsIn <- table(factor(currentPheno[cluster],levels(phenoAsFactor)))
@@ -434,8 +435,8 @@ server <- function(input, output, session) {
           relCountsIn <- (countsIn/sum(countsIn))*100
           relCountsOut <- (countsOut/sum(countsOut))*100
           details <- ""
-          for (i in seq_len(length(relCountsAll))){
-            details <- sprintf("%s%s (mean overall: %s%%): %s%% vs. %s%%<br/>",details,names(relCountsAll)[[i]],twoDeci(relCountsAll[[i]]),twoDeci(relCountsIn[[i]]),twoDeci(relCountsOut[[i]]))
+          for (j in seq_len(length(relCountsAll))){
+            details <- sprintf("%s%s (mean overall: %s%%): %s%% vs. %s%%<br/>",details,names(relCountsAll)[[j]],twoDeci(relCountsAll[[j]]),twoDeci(relCountsIn[[j]]),twoDeci(relCountsOut[[j]]))
           }
           enrichedPhenos <- sprintf("%s<br/>%s (Percentage mean overall): in cluster vs. outside cluster<br/>%s-> pValue of %s<br/>",enrichedPhenos,names(finalValues$pheno)[[i]],details,pVal)
         } else {
@@ -1032,6 +1033,9 @@ server <- function(input, output, session) {
   
   calcPValueForCluster <- function(cluster,phenotype,phenoId){
     phenoNoNa <- phenotype[!is.na(phenotype)]
+    if (length(unique(phenoNoNa))==1){
+      return(1)
+    }
     if (finalValues$phenoFactors[[as.numeric(phenoId)]]){
       return(getChiForCluster(cluster,phenotype,TRUE))
     } else {
@@ -1045,7 +1049,7 @@ server <- function(input, output, session) {
       clusterPhenos <- clusterPhenos[!is.na(clusterPhenos)]
       nonClusterPhenos <- phenotype[-cluster]
       nonClusterPhenos <- nonClusterPhenos[!is.na(nonClusterPhenos)]
-      if(length(unique(c(clusterPhenos,nonClusterPhenos)))==1||length(clusterPhenos)==0||length(nonClusterPhenos)==0){
+      if(length(unique(c(clusterPhenos,nonClusterPhenos)))==1||length(clusterPhenos)<=1||length(nonClusterPhenos)<=1){
         return(1)
       } else if(length(unique(clusterPhenos))==1 & length(unique(nonClusterPhenos))==1){
         return(0)
@@ -1069,7 +1073,7 @@ server <- function(input, output, session) {
     counts <- NULL
     
     for (i in seq_len(length(uniques))){
-      level <- unique(phenoNoNa)[[i]]
+      level <- as.numeric(unique(phenoNoNa)[[i]])
       clust <- sum(pheno[cluster]==level,na.rm = T)
       nonClust <- sum(pheno[-cluster]==level,na.rm = T)
       if (is.null(counts)){
@@ -1094,14 +1098,15 @@ server <- function(input, output, session) {
   observeEvent(input$autoCluster, {
     if (length(data())==4){
       if (!is.null(clusteringData$COSA$hist)){
-        temps$index <- list.flatten(list(getClusters(clusteringData$COSA$hist$dendro[[1]]),getClusters(clusteringData$COSA$hist$dendro[[2]])))
+       res <- list.flatten(list(getClusters(clusteringData$COSA$hist$dendro[[1]]),getClusters(clusteringData$COSA$hist$dendro[[2]])))
+       temps$index <- res[!sapply(res, is.null)]
       }
       
     }
   })
   
   #returns all clusters from a dendrogram which have at least limit elements
-  getClusters <- function(dendro,limit=10){
+  getClusters <- function(dendro,limit=78){
     if (nobs(dendro)<limit){
       return(NULL)
     }
