@@ -490,12 +490,13 @@ server <- function(input, output, session) {
   
   # Reset the saved Clusterings
   observeEvent(input$resetClustering, {
+    metabComplete <- data.frame(scale(finalValues$metab))
+    clusteringData$PhenoPValues[[input$clusteringType]] <- list()
       switch(input$clusteringType, 
              SOM={
-               clusteringData$SOM = list()
+               clusteringData$SOM <- som(data.matrix(metabComplete), grid = somgrid(xdim = 5,ydim = 5, topo = "hexagonal"),rlen = 100, alpha = c(0.08,0.01))
              },
              COSA={
-               clusteringData$COSA = list()
                temps$index = list()
                temps$oldk = NULL
                temps$oldx = NULL
@@ -503,15 +504,38 @@ server <- function(input, output, session) {
                temps$grps = c(0)
                temps$clickHist = NULL
                temps$rects = data.frame(x1=NULL,y1=NULL,x2=NULL,y2=NULL,border=NULL)
+               clusteringData$COSA <- cosa2(metabComplete, lambda = 0.4, niter = 2, noit = 30)
+               clusteringData$COSA$smacof <- smacof(clusteringData$COSA$D, niter = 30, interc = 1, VERBOSE = FALSE, PLOT = FALSE)
+               clusteringData$COSA$idsAndSmacof <- data.frame(cbind(names(finalValues$idFromNum),clusteringData$COSA$smacof$X))
+               names(clusteringData$COSA$idsAndSmacof) <- c("id","x","y")
+               
+               toggleModal(session, "cosaHist", toggle = "toggle")
                },
              DOC={  
-               clusteringData$DOC = list()
+               clusteringData$DOC <- tryCatch(runDoc(metabComplete, 0.1, 0.75, calcW(metabComplete, 1.3)),error = function(x){return(list())})
+               
+               docMDSValues <- plotFromClusters(getIdsDoc(clusteringData$DOC), returnMDS = TRUE)
+               clusteringData$DocMDS <- data.frame(cbind(seq_len(nrow(docMDSValues)),docMDSValues))
+               names(clusteringData$DocMDS) <- c("id","x","y")
              },
              Clique={
-               clusteringData$Clique = list()
+               inds <- nrow(metabComplete)
+               xi <- 8
+               if (inds>800){
+                 xi <- xi + floor((inds-800)/200)
+                 if (xi>14){
+                   xi <- 14
+                 }
+               }
+               clusteringData$Clique <- CLIQUE(metabComplete, xi = xi,tau = 0.1) 
+               
+               cliqueMDSValues <- plotFromClusters(lapply(clusteringData$Clique, `[[`, "objects"), returnMDS = TRUE)
+               clusteringData$CliqueMDS <- data.frame(cbind(seq_len(nrow(cliqueMDSValues)),cliqueMDSValues))
+               names(clusteringData$CliqueMDS) <- c("id","x","y")
              }
       )
   })
+  
  
   
       
@@ -766,10 +790,11 @@ server <- function(input, output, session) {
       pVals <- paste(names(finalValues$pheno)[selectedPheno],"pVal",sep="-")
       means <- paste(names(finalValues$pheno)[selectedPheno],"mean",sep="-")
         
-      header <- sprintf("Ids\t%s", result,paste(names(finalValues$pheno)[selectedPheno], pVals, means, sep="\t", collapse = "\t"))
+      header <- sprintf("Ids\t%s", paste(pVals, means, sep="\t", collapse = "\t"))
       
-      dataToDownload <- unlist(sapply(currentClusters, function(x){
-          ids <- paste(x, collapse=",")
+      dataToDownload <- unlist(sapply(seq_along(currentClusters), function(x){
+          cluster <- currentClusters[[x]]
+          ids <- paste(cluster, collapse=",")
           result <- ids
           for (i in selectedPheno){
             currentPheno <- finalValues$pheno[[i]]
@@ -778,14 +803,17 @@ server <- function(input, output, session) {
             meanOutside <- mean(currentPheno[-cluster],na.rm = TRUE)
             meanAll <- mean(currentPheno,na.rm = TRUE)
             
-            result <- sprintf("%s\t%s\t%s_%s_%s", result,clusteringData$PhenoPValues[[input$clusteringType]][[i]],meanInside,meanOutside,meanAll)
+            if (!pValueExists(input$clusteringType,i)){
+              clusteringData$PhenoPValues[[input$clusteringType]][[i]] <- unlist(sapply(currentClusters, function(y) calcPValueForCluster(y,finalValues$pheno[[i]],i)))
+            }
+            result <- sprintf("%s\t%s\t%s_%s_%s", result,clusteringData$PhenoPValues[[input$clusteringType]][[i]][[x]],meanInside,meanOutside,meanAll)
             
           }
           return(result)
         })
         )
       
-      write(c(header,dataToDownload), file,sep = "\t")
+      write(c(header,dataToDownload), file, ncolumns = 1)
     },
     contentType = "text/tab-separated-values"
   )
@@ -837,9 +865,6 @@ server <- function(input, output, session) {
       len <- length(current)
       
       columns <- seq(0,len)
-      if (input$clusteringType=="SOM"){
-        columns <- sort(c(0,unique(clusteringData$SOM$unit.classif)))
-      } 
       
       if (len>0&length(finalValues$pheno)!=as.numeric(input$selectedPhenotype)){
         if (!pValueExists(input$clusteringType,input$selectedPhenotype)){
@@ -876,12 +901,8 @@ server <- function(input, output, session) {
     } else if (input$clusteringType=="SOM"){
       ids <- 1:nrow(finalValues$metab)
       clusters <- list()
-      clusterCounts <- sort(table(clusteringData$SOM$unit.classif),decreasing = TRUE)
-      
-      minicount<-1
-      for (i in names(clusterCounts)){
-        clusters[[minicount]] <- ids[clusteringData$SOM$unit.classif==as.numeric(i)]
-        minicount<-minicount+1
+      for (i in seq_len(25)){
+        clusters[[i]] <- ids[clusteringData$SOM$unit.classif==as.numeric(i)]
       }
       return(clusters)
     }
@@ -1055,6 +1076,9 @@ server <- function(input, output, session) {
   }
   
   calcPValueForCluster <- function(cluster,phenotype,phenoId){
+    if (length(cluster)==0){
+      return(1)
+    }
     phenoNoNa <- phenotype[!is.na(phenotype)]
     if (length(unique(phenoNoNa))==1){
       return(1)
