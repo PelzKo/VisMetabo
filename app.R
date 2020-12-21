@@ -760,9 +760,32 @@ server <- function(input, output, session) {
       paste("ids-", input$clusteringType, Sys.Date(), ".tsv", sep="")
     },
     content = function(file) {
+      selectedPheno <- c(7,21,24)
+      
       currentClusters <- getCurrentClusters()
-      dataToDownload <- unlist(sapply(currentClusters,paste,collapse=","))
-      write(dataToDownload, file,sep = "\t")
+      pVals <- paste(names(finalValues$pheno)[selectedPheno],"pVal",sep="-")
+      means <- paste(names(finalValues$pheno)[selectedPheno],"mean",sep="-")
+        
+      header <- sprintf("Ids\t%s", result,paste(names(finalValues$pheno)[selectedPheno], pVals, means, sep="\t", collapse = "\t"))
+      
+      dataToDownload <- unlist(sapply(currentClusters, function(x){
+          ids <- paste(x, collapse=",")
+          result <- ids
+          for (i in selectedPheno){
+            currentPheno <- finalValues$pheno[[i]]
+            
+            meanInside <- mean(currentPheno[cluster],na.rm = TRUE)
+            meanOutside <- mean(currentPheno[-cluster],na.rm = TRUE)
+            meanAll <- mean(currentPheno,na.rm = TRUE)
+            
+            result <- sprintf("%s\t%s\t%s_%s_%s", result,clusteringData$PhenoPValues[[input$clusteringType]][[i]],meanInside,meanOutside,meanAll)
+            
+          }
+          return(result)
+        })
+        )
+      
+      write(c(header,dataToDownload), file,sep = "\t")
     },
     contentType = "text/tab-separated-values"
   )
