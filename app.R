@@ -643,6 +643,7 @@ server <- function(input, output, session) {
     clusteringBrush <- input$clustering_brush
     pcaBrush <- input$pca_brush
     idsFromCluster <- finalValues$idsFromCluster
+    ids <- NULL
     
     if (input$clusteringType=="Nothing"){
       return(HTML(finalValues$tempInfo))
@@ -653,67 +654,19 @@ server <- function(input, output, session) {
              SOM={
              },
              COSA={
-               points <- brushedPoints(clusteringData$COSA$idsAndSmacof, clusteringBrush, xvar = "x", yvar = "y")
-               finalValues$currentIds <- finalValues$idFromNum[as.character(points$id)]
-               phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
-               phenoInPoints <- phenotypes[points$id]
-               phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
-               naPercentage <- length(phenoInPoints[is.na(phenoInPoints)])/length(phenoInPoints)*100
-               averageSelected <- colMeans(finalValues$metab[points$id,])
-               
-               ids <- sprintf("The area you selected (phenotype average of %s, %s%% NA values), contains the following ids: <br/>%s", round(phenotypeAverage, digits = 2),round(naPercentage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
-               averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageSelected, SIMPLIFY=FALSE)
-               average <- sprintf("The average values in this area are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
-               
-               finalValues$tempInfo <- paste(ids, average, sep = '<br/>')
+               ids <- brushedPoints(clusteringData$COSA$idsAndSmacof, clusteringBrush, xvar = "x", yvar = "y")$id
              },
              DOC={
-               points <- brushedPoints(clusteringData$DocMDS, clusteringBrush, xvar = "x", yvar = "y")
-               finalValues$currentIds <- finalValues$idFromNum[as.character(points$id)]
-               phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
-               phenoInPoints <- phenotypes[points$id]
-               phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
-               naPercentage <- length(phenoInPoints[is.na(phenoInPoints)])/length(phenoInPoints)*100
-               averageSelected <- colMeans(finalValues$metab[points$id,])
-               
-               ids <- sprintf("The area you selected (phenotype average of %s, %s%% NA values), contains the following ids: <br/>%s", round(phenotypeAverage, digits = 2),round(naPercentage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
-               averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageSelected, SIMPLIFY=FALSE)
-               average <- sprintf("The average values in this area are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
-               
-               finalValues$tempInfo <- paste(ids, average, sep = '<br/>')
+               ids <- brushedPoints(clusteringData$DocMDS, clusteringBrush, xvar = "x", yvar = "y")$id
              },
              {
                # default is using Clique
-               points <- brushedPoints(clusteringData$CliqueMDS, clusteringBrush, xvar = "x", yvar = "y")
-               finalValues$currentIds <- finalValues$idFromNum[as.character(points$id)]
-               phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
-               phenoInPoints <- phenotypes[points$id]
-               phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
-               naPercentage <- length(phenoInPoints[is.na(phenoInPoints)])/length(phenoInPoints)*100
-               averageSelected <- colMeans(finalValues$metab[points$id,])
-               
-               ids <- sprintf("The area you selected (phenotype average of %s, %s%% NA values), contains the following ids: <br/>%s", round(phenotypeAverage, digits = 2),round(naPercentage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
-               averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageSelected, SIMPLIFY=FALSE)
-               average <- sprintf("The average values in this area are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
-               
-               finalValues$tempInfo <- paste(ids, average, sep = '<br/>')
+               ids <- brushedPoints(clusteringData$CliqueMDS, clusteringBrush, xvar = "x", yvar = "y")$id
              }
       )
       
     } else if (!is.null(pcaBrush)&!equalsBrush(temps$pcaBrush,pcaBrush)){
-      pointsPCA <- brushedPoints(pcaValues$visWithId, pcaBrush, xvar = "x", yvar = "y")
-      finalValues$currentIds <- finalValues$idFromNum[as.character(pointsPCA$id)]
-      phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
-      phenoInPoints <- phenotypes[pointsPCA$id]
-      phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
-      naPercentage <- length(phenoInPoints[is.na(phenoInPoints)])/length(phenoInPoints)*100
-      averageSelected <- colMeans(finalValues$metab[pointsPCA$id,])
-      
-      ids <- sprintf("The area you selected (phenotype average of %s, %s%% NA values), contains the following ids: <br/>%s", round(phenotypeAverage, digits = 2),round(naPercentage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
-      averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageSelected, SIMPLIFY=FALSE)
-      average <- sprintf("The average values in this area are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
-      
-      finalValues$tempInfo <- paste(ids, average, sep = '<br/>')
+      ids <- brushedPoints(pcaValues$visWithId, pcaBrush, xvar = "x", yvar = "y")$id
       
     } else if (!is.null(clusteringClick)&!equalsClick(temps$clusteringClick,clusteringClick)){
       switch(input$clusteringType, 
@@ -729,20 +682,11 @@ server <- function(input, output, session) {
                if (length(currentBubbleId)==0)
                  return(" ")
                
+               ids <- seq_len(nrow(clusteringData$SOM$data[[1]]))[clusteringData$SOM$unit.classif==currentBubbleId]
+               
                averageInBubble <- clusteringData$SOM$codes[[1]][currentBubbleId,]
-               
-               idsInBubble <- seq_len(nrow(clusteringData$SOM$data[[1]]))[clusteringData$SOM$unit.classif==currentBubbleId]
-               finalValues$currentIds <- finalValues$idFromNum[idsInBubble]
-               
-               phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
-               phenoInPoints <- phenotypes[idsInBubble]
-               phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
-               naPercentage <- length(phenoInPoints[is.na(phenoInPoints)])/length(phenoInPoints)*100
-               ids <- sprintf("This node (%s, phenotype average of %s, %s%% NA values) contains the following ids: <br/>%s", currentBubbleId, round(phenotypeAverage, digits = 2),round(naPercentage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
                averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageInBubble, SIMPLIFY=FALSE)
-               average <- sprintf("The average values in this node are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
-               
-               finalValues$tempInfo <- paste(ids, average, sep = '<br/>')
+               average <- sprintf("The code vector for this node is: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
              },
              COSA={
              },
@@ -754,24 +698,22 @@ server <- function(input, output, session) {
       )
     } else if (!is.null(idsFromCluster)&!identical(idsFromCluster,temps$idsFromClusterOld)){
       ids <- idsFromCluster
-      
-      finalValues$currentIds <- finalValues$idFromNum[as.character(idsFromCluster)]
-      phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
-      phenoInPoints <- phenotypes[idsFromCluster]
-      phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
-      averageSelected <- colMeans(finalValues$metab[idsFromCluster,])
-      naPercentage <- length(phenoInPoints[is.na(phenoInPoints)])/length(phenoInPoints)*100
-      #if(!is.null(input$clusterId)){
-      
-      ids <- sprintf("The cluster you selected (%s, phenotype average of %s, %s%% NA values), contains the following ids: <br/>%s", input$clusterId, round(phenotypeAverage, digits = 2),round(naPercentage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
-      averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageSelected, SIMPLIFY=FALSE)
-      average <- sprintf("The average values in this area are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
-      
-      finalValues$tempInfo <- paste(ids, average, sep = '<br/>')
     }
     
-    idString <- sprintf("The area you selected (phenotype average of %s, %s%% NA values), contains the following ids: <br/>%s", round(phenotypeAverage, digits = 2),round(naPercentage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
-    finalValues$tempInfo <- paste(idString, average, sep = '<br/>')
+    if (!is.null(ids)){
+      finalValues$currentIds <- finalValues$idFromNum[as.character(ids)]
+      phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
+      phenoInPoints <- phenotypes[ids]
+      phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
+      naPercentage <- length(phenoInPoints[is.na(phenoInPoints)])/length(phenoInPoints)*100
+      if (input$clusteringType!="SOM"){
+        averageSelected <- colMeans(finalValues$metab[ids,])
+        averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageSelected, SIMPLIFY=FALSE)
+        average <- sprintf("The average values in this area are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
+      }
+      idString <- sprintf("The area you selected (phenotype average of %s, %s%% NA values), contains the following ids: <br/>%s", round(phenotypeAverage, digits = 2),round(naPercentage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
+      finalValues$tempInfo <- paste(idString, average, sep = '<br/>')
+    }
     
     temps$clusteringClick <- clusteringClick
     temps$clusteringBrush <- clusteringBrush
@@ -781,39 +723,6 @@ server <- function(input, output, session) {
     return(HTML(finalValues$tempInfo))
     
   })
-  
-  outputString <- function(){
-    
-    
-    ids <- brushedPoints(clusteringData$DocMDS, clusteringBrush, xvar = "x", yvar = "y")$id
-    
-    
-    
-    ids <- brushedPoints(pcaValues$visWithId, pcaBrush, xvar = "x", yvar = "y")$id
-    
-    
-    ids <- brushedPoints(clusteringData$CliqueMDS, clusteringBrush, xvar = "x", yvar = "y")$id
-    
-    finalValues$currentIds <- finalValues$idFromNum[as.character(ids)]
-    phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
-    phenoInPoints <- phenotypes[ids]
-    phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
-    naPercentage <- length(phenoInPoints[is.na(phenoInPoints)])/length(phenoInPoints)*100
-    averageSelected <- colMeans(finalValues$metab[ids,])
-    
-    averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageSelected, SIMPLIFY=FALSE)
-    average <- sprintf("The average values in this area are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
-    
-    
-    
-    
-    
-    ids <- seq_len(nrow(clusteringData$SOM$data[[1]]))[clusteringData$SOM$unit.classif==currentBubbleId]
-    
-    averageInBubble <- clusteringData$SOM$codes[[1]][currentBubbleId,]
-    averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageInBubble, SIMPLIFY=FALSE)
-    average <- sprintf("The average values in this node are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
-  }
   
   output$downloadClusterIds <- renderUI({
     currentClusters <- getCurrentClusters()
