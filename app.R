@@ -684,9 +684,19 @@ server <- function(input, output, session) {
                
                ids <- seq_len(nrow(clusteringData$SOM$data[[1]]))[clusteringData$SOM$unit.classif==currentBubbleId]
                
+               
+               finalValues$currentIds <- finalValues$idFromNum[as.character(ids)]
+               phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
+               phenoInPoints <- phenotypes[ids]
+               phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
+               naPercentage <- length(phenoInPoints[is.na(phenoInPoints)])/length(phenoInPoints)*100
+               
                averageInBubble <- clusteringData$SOM$codes[[1]][currentBubbleId,]
                averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageInBubble, SIMPLIFY=FALSE)
                average <- sprintf("The code vector for this node is: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
+               
+               idString <- sprintf("The area you selected (phenotype average of %s, %s%% NA values), contains the following ids: <br/>%s", round(phenotypeAverage, digits = 2),round(naPercentage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
+               finalValues$tempInfo <- paste(idString, average, sep = '<br/>')
              },
              COSA={
              },
@@ -700,17 +710,16 @@ server <- function(input, output, session) {
       ids <- idsFromCluster
     }
     
-    if (!is.null(ids)){
+    if (!is.null(ids)&input$clusteringType!="SOM"){
       finalValues$currentIds <- finalValues$idFromNum[as.character(ids)]
       phenotypes <- finalValues$pheno[[as.numeric(input$selectedPhenotype)]]
       phenoInPoints <- phenotypes[ids]
       phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
       naPercentage <- length(phenoInPoints[is.na(phenoInPoints)])/length(phenoInPoints)*100
-      if (input$clusteringType!="SOM"){
-        averageSelected <- colMeans(finalValues$metab[ids,])
-        averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageSelected, SIMPLIFY=FALSE)
-        average <- sprintf("The average values in this area are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
-      }
+      averageSelected <- colMeans(finalValues$metab[ids,])
+      averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageSelected, SIMPLIFY=FALSE)
+      average <- sprintf("The average values in this area are: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
+      
       idString <- sprintf("The area you selected (phenotype average of %s, %s%% NA values), contains the following ids: <br/>%s", round(phenotypeAverage, digits = 2),round(naPercentage, digits = 2), paste(finalValues$currentIds, collapse = ', '))
       finalValues$tempInfo <- paste(idString, average, sep = '<br/>')
     }
@@ -738,7 +747,7 @@ server <- function(input, output, session) {
       paste("ids-", input$clusteringType, Sys.Date(), ".tsv", sep="")
     },
     content = function(file) {
-      selectedPheno <- c(7,21,24)
+      selectedPheno <- c(7,9,21,22,24)
       
       currentClusters <- getCurrentClusters()
       pVals <- paste(names(finalValues$pheno)[selectedPheno],"pVal",sep="-")
@@ -821,7 +830,7 @@ server <- function(input, output, session) {
       columns <- seq(0,len)
       
       if (len>0&length(finalValues$pheno)!=as.numeric(input$selectedPhenotype)){
-        if (!pValueExists(input$clusteringType,input$selectedPhenotype)){
+        if (!pValueExists(input$clusteringType,input$selectedPhenotype)|input$clusteringType=="COSA"){
           clusteringData$PhenoPValues[[input$clusteringType]][[as.numeric(input$selectedPhenotype)]] <- unlist(sapply(current, function(x) calcPValueForCluster(x,finalValues$pheno[[as.numeric(input$selectedPhenotype)]],as.numeric(input$selectedPhenotype))))
         }
         
