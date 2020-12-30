@@ -792,7 +792,7 @@ server <- function(input, output, session) {
   # Downloads the current subset displayed in info
   output$downloadValues <- downloadHandler(
     filename = function() {
-      paste("metabolites-", Sys.Date(), ".tsv", sep="")
+      paste("metabAndPheno-", Sys.Date(), ".tsv", sep="")
     },
     content = function(file) {
       dataToDownload <- finalValues$completeData[finalValues$numFromId[as.character(finalValues$currentIds)],]
