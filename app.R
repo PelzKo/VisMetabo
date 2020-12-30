@@ -280,7 +280,6 @@ server <- function(input, output, session) {
                    }
                    output$metabUsed <- renderUI(HTML(sprintf("Cluster %s selected<br/>Significant Phenotypes:<br/>%s",input$clusterId,enrichedPhenos)))
                    finalValues$idsFromCluster <- finalValues$numFromId[clusteringData$SOM$unit.classif==input$clusterId]
-                   clusteringData$SOM$currentClusterId <- input$clusterId
                  } else {
                    output$metabUsed <- renderUI(HTML("No cluster selected"))
                  }
@@ -645,6 +644,7 @@ server <- function(input, output, session) {
     pcaBrush <- input$pca_brush
     idsFromCluster <- finalValues$idsFromCluster
     ids <- NULL
+    currentClusterId <- as.numeric(input$clusterId)
     
     if (input$clusteringType=="Nothing"){
       return(HTML(finalValues$tempInfo))
@@ -685,7 +685,7 @@ server <- function(input, output, session) {
                
                ids <- seq_len(nrow(clusteringData$SOM$data[[1]]))[clusteringData$SOM$unit.classif==currentBubbleId]
                
-               clusteringData$SOM$currentClusterId <- currentBubbleId
+               currentClusterId <- as.numeric(currentBubbleId)
                
                #
                #finalValues$currentIds <- finalValues$idFromNum[as.character(ids)]
@@ -720,7 +720,7 @@ server <- function(input, output, session) {
       phenotypeAverage <- mean(phenoInPoints[!is.na(phenoInPoints)])
       naPercentage <- length(phenoInPoints[is.na(phenoInPoints)])/length(phenoInPoints)*100
       if (input$clusteringType=="SOM"){
-        averageInBubble <- clusteringData$SOM$codes[[1]][clusteringData$SOM$currentCluster,]
+        averageInBubble <- clusteringData$SOM$codes[[1]][currentClusterId,]
         averagesFormatted <- mapply(function(x,y) paste(x, round(as.numeric(y), digits=4), sep=": "), names(finalValues$metab), averageInBubble, SIMPLIFY=FALSE)
         average <- sprintf("The code vector for this node is: <br/>%s", paste(averagesFormatted, collapse = '<br/>'))
       } else {
@@ -761,12 +761,12 @@ server <- function(input, output, session) {
       pVals <- paste(names(finalValues$pheno)[selectedPheno],"pVal",sep="-")
       means <- paste(names(finalValues$pheno)[selectedPheno],"mean",sep="-")
         
-      header <- sprintf("Ids\t%s", paste(pVals, means, sep="\t", collapse = "\t"))
+      header <- sprintf("ClusterId\tIdsInCluster\t%s", paste(pVals, means, sep="\t", collapse = "\t"))
       
       dataToDownload <- unlist(sapply(seq_along(currentClusters), function(x){
-          cluster <- currentClusters[[x]]
+          cluster <- finalValues$idFromNum[as.character(currentClusters[[x]])]
           ids <- paste(cluster, collapse=",")
-          result <- ids
+          result <- paste(x,ids,sep = "\t")
           for (i in selectedPheno){
             currentPheno <- finalValues$pheno[[i]]
             
@@ -868,7 +868,10 @@ server <- function(input, output, session) {
     if (input$clusteringType=="Clique"){
       return(lapply(clusteringData$Clique, "[[", "objects"))
     } else if (input$clusteringType=="DOC"){
-      return(getIdsDoc(clusteringData$DOC))
+      if (length(clusteringData$DOC)>0){
+        return(getIdsDoc(clusteringData$DOC))
+      }
+      return()
     } else if (input$clusteringType=="SOM"){
       ids <- 1:nrow(finalValues$metab)
       clusters <- list()
