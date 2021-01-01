@@ -166,11 +166,11 @@ server <- function(input, output, session) {
                  
                },
                DOC={
-                 clusteringData$DOC <- tryCatch(runDoc(metabComplete, 0.1, 0.75, calcW(metabComplete, 1.3)),error = function(x){return(list())})
-                 
+                 clusteringData$DOC <- runDoc(metabComplete, 0.1, 0.75, calcW(metabComplete, 1.3))
                  docMDSValues <- plotFromClusters(getIdsDoc(clusteringData$DOC), returnMDS = TRUE)
                  clusteringData$DocMDS <- data.frame(cbind(seq_len(nrow(docMDSValues)),docMDSValues))
                  names(clusteringData$DocMDS) <- c("id","x","y")
+                 
                },
                {
                  # default is using Clique
@@ -512,11 +512,11 @@ server <- function(input, output, session) {
                toggleModal(session, "cosaHist", toggle = "toggle")
                },
              DOC={  
-               clusteringData$DOC <- tryCatch(runDoc(metabComplete, 0.1, 0.75, calcW(metabComplete, 1.3)),error = function(x){return(list())})
-               
+               clusteringData$DOC <- runDoc(metabComplete, 0.1, 0.75, calcW(metabComplete, 1.3))
                docMDSValues <- plotFromClusters(getIdsDoc(clusteringData$DOC), returnMDS = TRUE)
                clusteringData$DocMDS <- data.frame(cbind(seq_len(nrow(docMDSValues)),docMDSValues))
                names(clusteringData$DocMDS) <- c("id","x","y")
+              
              },
              Clique={
                inds <- nrow(metabComplete)
@@ -868,10 +868,7 @@ server <- function(input, output, session) {
     if (input$clusteringType=="Clique"){
       return(lapply(clusteringData$Clique, "[[", "objects"))
     } else if (input$clusteringType=="DOC"){
-      if (length(clusteringData$DOC)>0){
-        return(getIdsDoc(clusteringData$DOC))
-      }
-      return()
+      return(getIdsDoc(clusteringData$DOC))
     } else if (input$clusteringType=="SOM"){
       ids <- 1:nrow(finalValues$metab)
       clusters <- list()
@@ -1119,7 +1116,8 @@ server <- function(input, output, session) {
   observeEvent(input$autoCluster, {
     if (length(data())==4){
       if (!is.null(clusteringData$COSA$hist)){
-       res <- list.flatten(list(getClusters(clusteringData$COSA$hist$dendro[[1]]),getClusters(clusteringData$COSA$hist$dendro[[2]])))
+       minClusterSize <- floor(0.05*nobs(clusteringData$COSA$hist$dendro))
+       res <- list.flatten(list(getClusters(clusteringData$COSA$hist$dendro[[1]],minClusterSize),getClusters(clusteringData$COSA$hist$dendro[[2]],minClusterSize)))
        temps$index <- res[!sapply(res, is.null)]
       }
       
@@ -1127,7 +1125,7 @@ server <- function(input, output, session) {
   })
   
   #returns all clusters from a dendrogram which have at least limit elements
-  getClusters <- function(dendro,limit=78){
+  getClusters <- function(dendro,limit){
     if (nobs(dendro)<limit){
       return(NULL)
     }
