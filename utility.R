@@ -1,6 +1,8 @@
 getColors <- function(n) {
   if (n>9){
     return (colorRampPalette(c("red","white","blue"), space="Lab")(n))
+  } else if (n==2){
+    return(c("red","blue"))
   }
   return (rainbow(n))
 }
@@ -68,9 +70,10 @@ plotHeatMap <- function(som_model, phenotype_data, variable=0){
   }
 }
 
-plotFromClusters <- function(clus, label = TRUE, colorCluster = 0, colors = NULL, returnMDS = FALSE, main = "Classical (Metric) Multidimensional Scaling", xlab = "", ylab = "",pch = 16){
+plotFromClusters <- function(clus, label = TRUE, colorCluster = 0, colors = NULL, returnMDS = FALSE, main = "Classical (Metric) Multidimensional Scaling",xlab = "Dimension 1",ylab = "Dimension 2",pch = 16){
+  factor <- 1
   numberNodes <- max(unlist(clus))
-  n <- length(clus)+1
+  n <- (factor*length(clus))+1
   m <- matrix(n,nrow=numberNodes,ncol = numberNodes)
   diag(m)<-0
   
@@ -86,8 +89,8 @@ plotFromClusters <- function(clus, label = TRUE, colorCluster = 0, colors = NULL
     for (numOne in seq_len(length(cluster)-1)) {
       for (numTwo in seq(numOne+1,length(cluster))) {
         #print(paste(cluster[[numOne]],cluster[[numTwo]]))
-        m[cluster[[numOne]],cluster[[numTwo]]]<-m[cluster[[numOne]],cluster[[numTwo]]]-1
-        m[cluster[[numTwo]],cluster[[numOne]]]<-m[cluster[[numTwo]],cluster[[numOne]]]-1
+        m[cluster[[numOne]],cluster[[numTwo]]]<-m[cluster[[numOne]],cluster[[numTwo]]]-factor
+        m[cluster[[numTwo]],cluster[[numOne]]]<-m[cluster[[numTwo]],cluster[[numOne]]]-factor
       }
     }
   }
@@ -95,8 +98,16 @@ plotFromClusters <- function(clus, label = TRUE, colorCluster = 0, colors = NULL
   if (returnMDS){
     return(mds)
   }
+  
+  lims <- c(
+    ll = floor(100 * min(c(mds[, 1], mds[, 2]))) / 100,
+    ul = ceiling(100 * max(c(mds[, 1], mds[, 2]))) / 100
+  )
+  
   pl <- plot(mds, 
              xlab = xlab, ylab = ylab,
+             xlim = lims, ylim = lims,
+             xaxs = "r", yaxs = "r",
              main = main, pch = pch, col = cols)
   if (label){
     text(mds, row.names(mds), cex=0.6, pos=4, col="red")
