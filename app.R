@@ -197,8 +197,12 @@ server <- function(input, output, session) {
       phenotype <- origPheno
       phenotypeNoNa <- phenotype[!is.na(phenotype)]
       
+      factor <- class(phenotype)=="character"
+      if (length(finalValues$phenoFactors)>=as.numeric(input$selectedPhenotype)){
+        factor <- factor || finalValues$phenoFactors[[as.numeric(input$selectedPhenotype)]] 
+      }
       
-      if (class(phenotype)=="character"){
+      if (factor){
         origPheno <- factor(origPheno)
         phenotype <- as.numeric(factor(phenotype))
         phenotypeNoNa <- as.numeric(factor(phenotypeNoNa))
