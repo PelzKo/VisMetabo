@@ -319,6 +319,7 @@ server <- function(input, output, session) {
                  coloredPoints <- clusterColors
                }
                
+               
                output$clustering <- renderPlot(plotSmacof(clusteringData$COSA$smacof[["X"]], cols = coloredPoints, pch = clusterNumbers))
              },
              DOC={
@@ -594,7 +595,7 @@ server <- function(input, output, session) {
       output$phenoWhichFactor <- renderUI({
         checkboxGroupInput(
           "phenosWhichAreFactors",
-          "Please select which phenotypes are factors and not continuos",
+          "",
           selected = probablyFactors,
           choiceNames = names(pheno),
           choiceValues = seq_len(length(pheno))

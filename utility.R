@@ -104,13 +104,19 @@ plotFromClusters <- function(clus, label = TRUE, colorCluster = 0, colors = NULL
     ul = ceiling(100 * max(c(mds[, 1], mds[, 2]))) / 100
   )
   
+  size <- 2
+  par(mar = c(5,5,4,2)+0.1)
   pl <- plot(mds, 
              xlab = xlab, ylab = ylab,
              xlim = lims, ylim = lims,
              xaxs = "r", yaxs = "r",
+             cex.lab = size,
+             cex.axis = size,
+             cex.main = size,
              main = main, pch = pch, col = cols)
   if (label){
     text(mds, row.names(mds), cex=0.6, pos=4, col="red")
   }
+  
   return(pl)
 }

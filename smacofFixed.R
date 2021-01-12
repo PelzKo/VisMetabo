@@ -62,18 +62,29 @@ plotSmacof <- function(xx, main = "Multidimensional Scaling", pch = 16, cols = "
     ul = ceiling(100 * max(c(xx[, 1], xx[, 2]))) / 100
   )
   
+  size <- 2
+  par(mar = c(5,5,4,2)+0.1)
   plot(xx,
        xlab = "Dimension 1", ylab = "Dimension 2",
        main = main, xlim = lims, ylim = lims,
-       xaxs = "r", yaxs = "r", pch = pch, col = cols, ...
+       xaxs = "r", yaxs = "r", 
+       cex.lab = size,
+       cex.axis = size,
+       cex.main = size,
+       pch = pch, col = cols, ...
   )
 }
 
 plotNoLims <- function(xx, main = "Plot", xlab = "Dimension 1", ylab = "Dimension 2", pch = 16, cols = "black", ...){
+  size <- 2
+  par(mar = c(5,5,4,2)+0.1)
   plot(xx,
        xlab = xlab, ylab = ylab,
        main = main,
-       xaxs = "r", yaxs = "r", pch = pch, col = cols, ...
+       xaxs = "r", yaxs = "r", pch = pch, col = cols,
+       cex.lab = size,
+       cex.axis = size,
+       cex.main = size, ...
   )
 }
 
