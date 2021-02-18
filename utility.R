@@ -37,7 +37,7 @@ plotHeatMap <- function(som_model, phenotype_data, variable=0){
       #interactive <- TRUE
       #color_variable <- data.frame(phenotype_data[, color_by_var])
       
-      return(plot(som_model, type = "quality", main="Quality score (mean distance of objects to codebook vector of that unit, smaller is better)", palette.name=redWhiteBlue))
+      return(plot(som_model, type = "quality", main="Quality score (mean distance of objects to codebook vector of that unit, smaller is better)", palette.name=getColors))
       
     } else {
       color_variable <- data.frame(phenotype_data[, variable])
@@ -66,7 +66,7 @@ plotHeatMap <- function(som_model, phenotype_data, variable=0){
       color_by <- color_variable[,1]
     }
     unit_colors <- aggregate(color_by, by=list(som_model$unit.classif), FUN=mean, simplify=TRUE)
-    plot(som_model, type = "property", property=unit_colors[,2], main=color_by_var, palette.name=redWhiteBlue)    
+    plot(som_model, type = "property", property=unit_colors[,2], main=color_by_var, palette.name=getColors)    
   }
 }
 
